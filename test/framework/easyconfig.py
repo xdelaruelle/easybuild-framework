@@ -37,6 +37,7 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 from vsc import fancylogger
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 import easybuild.tools.options as eboptions
@@ -53,6 +54,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
 
+
 class EasyConfigTest(EnhancedTestCase):
     """ easyconfig tests """
     contents = None
@@ -62,7 +64,9 @@ class EasyConfigTest(EnhancedTestCase):
         """Set up everything for running a unit test."""
 
         # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
+        args = []
+        args = ['-d']
+        eb_go = eboptions.parse_options(args)
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
         self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
@@ -832,4 +836,7 @@ def suite():
 
 
 if __name__ == '__main__':
+    # also chekc the setUp for debug
+    logToScreen(enable=True)
+    setLogLevelDebug()
     main()
