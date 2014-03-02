@@ -65,7 +65,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # initialize configuration so config.get_modules_tool function works
         args = []
-        args = ['-d']
+        # args = ['--debug'] # uncomment for debug logs
         eb_go = eboptions.parse_options(args)
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
@@ -837,6 +837,6 @@ def suite():
 
 if __name__ == '__main__':
     # also chekc the setUp for debug
-    logToScreen(enable=True)
-    setLogLevelDebug()
+    # logToScreen(enable=True)
+    # setLogLevelDebug()
     main()
