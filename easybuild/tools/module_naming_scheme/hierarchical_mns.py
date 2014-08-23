@@ -41,9 +41,6 @@ COMPILER = 'Compiler'
 MPI = 'MPI'
 
 
-_log = fancylogger.getLogger('HierarchicalMNS')
-
-
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
 
@@ -74,9 +71,11 @@ class HierarchicalMNS(ModuleNamingScheme):
         """
         Determine toolchain compiler tag, for given list of compilers.
         """
-        if len(tc_comps) == 1:
-            tc_comp_name = tc_comps[0]['name']
-            tc_comp_ver = tc_comps[0]['version']
+        if tc_comps is None:
+            # no compiler in toolchain, dummy toolchain
+            res = None
+        elif len(tc_comps) == 1:
+            res = (tc_comps[0]['name'], tc_comps[0]['version'])
         else:
             tc_comp_names = [comp['name'] for comp in tc_comps]
             if set(tc_comp_names) == set(['icc', 'ifort']):
@@ -84,11 +83,13 @@ class HierarchicalMNS(ModuleNamingScheme):
                 if tc_comps[0]['version'] == tc_comps[1]['version']:
                     tc_comp_ver = tc_comps[0]['version']
                 else:
-                    _log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
+                    self.log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
             else:
                 mns = self.__class__.__name__
-                _log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
-        return tc_comp_name, tc_comp_ver
+                self.log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
+            res = (tc_comp_name, tc_comp_ver)
+
+        return res
 
     def det_module_subdir(self, ec):
         """
@@ -96,13 +97,14 @@ class HierarchicalMNS(ModuleNamingScheme):
         This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
         Examples: Core, Compiler/GCC/4.8.3, MPI/GCC/4.8.3/OpenMPI/1.6.5
         """
-        # determine prefix based on type of toolchain used
         tc_comps = det_toolchain_compilers(ec)
-        if tc_comps is None:
+        tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
+        # determine prefix based on type of toolchain used
+        if tc_comp_info is None:
             # no compiler in toolchain, dummy toolchain => Core module
             subdir = CORE
         else:
-            tc_comp_name, tc_comp_ver = self.det_toolchain_compilers_name_version(tc_comps)
+            tc_comp_name, tc_comp_ver = tc_comp_info
             tc_mpi = det_toolchain_mpi(ec)
             if tc_mpi is None:
                 # compiler-only toolchain => Compiler/<compiler_name>/<compiler_version> namespace
@@ -123,12 +125,23 @@ class HierarchicalMNS(ModuleNamingScheme):
 
         paths = []
         if modclass == 'compiler':
-            paths.append(os.path.join(COMPILER, ec['name'], ec['version']))
+            if ec['name'] in ['icc', 'ifort']:
+                compdir = 'intel'
+            else:
+                compdir = ec['name']
+            paths.append(os.path.join(COMPILER, compdir, ec['version']))
         elif modclass == 'mpi':
             tc_comps = det_toolchain_compilers(ec)
-            tc_comp_name, tc_comp_ver = self.det_toolchain_compilers_name_version(tc_comps)
-            fullver = ec['version'] + ec['versionsuffix']
-            paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
+            tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
+            if not tc_comp_info is None:
+                tc_comp_name, tc_comp_ver = tc_comp_info
+                fullver = ec['version'] + ec['versionsuffix']
+                paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
+            else:
+                tup = (ec['toolchain'], ec['name'], ec['version'])
+                error_msg = "No compiler available in toolchain %s used to install MPI library %s v%s, " % tup
+                error_msg += "which is required by the active module naming scheme %s." % self.__class__.__name__
+                self.log.error(error_msg)
 
         return paths
 
