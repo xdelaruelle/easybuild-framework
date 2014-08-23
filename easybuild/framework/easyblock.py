@@ -595,9 +595,16 @@ class EasyBlock(object):
     @property
     def full_mod_name(self):
         """
-        Toolchain used to build this easyblock
+        Full module name (including subdirectory in module install path)
         """
         return self.cfg.full_mod_name
+
+    @property
+    def short_mod_name(self):
+        """
+        Short module name (not including subdirectory in module install path)
+        """
+        return self.cfg.short_mod_name
 
     #
     # DIRECTORY UTILITY FUNCTIONS
@@ -774,7 +781,7 @@ class EasyBlock(object):
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
             mns = ActiveMNS()
             if mns.expand_toolchain_load():
-                mod_names = self.toolchain.toolchain_dependencies
+                mod_names = self.toolchain.toolchain_dep_mods
                 deps.extend(mod_names)
                 self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
             else:
