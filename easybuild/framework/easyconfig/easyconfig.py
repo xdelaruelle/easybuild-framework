@@ -886,7 +886,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
     if build_specs is None:
-        cache_key = (path, validate, parse_only)
+        cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
             return copy.deepcopy(_easyconfigs_cache[cache_key])
 
@@ -978,9 +978,9 @@ def robot_find_easyconfig(name, version):
         _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfig_files_cache[key]))
         return _easyconfig_files_cache[key]
     paths = build_option('robot_path')
+    if not paths:
+        _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")
     if not isinstance(paths, (list, tuple)):
-        if paths is None:
-            _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")
         paths = [paths]
     # candidate easyconfig paths
     for path in paths:
