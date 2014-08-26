@@ -561,13 +561,13 @@ class ModulesTool(object):
 
         return read_file(modfilepath)
 
-    # depth=sys.maxint should be equivalent to infinite recursion depth
     def dependencies_for(self, mod_name, depth=sys.maxint):
         """
         Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+        @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
         """
         modtxt = self.read_module_file(mod_name)
-        loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
+        loadregex = re.compile(r"^\s*module load\s+(.*)$", re.M)
         mods = loadregex.findall(modtxt)
 
         if depth > 0:
@@ -585,15 +585,91 @@ class ModulesTool(object):
 
         return mods
 
-    def modpath_extensions_for(self, mod_name):
+    def modpath_extensions_for(self, mod_names):
         """
-        Determine list of $MODULEPATH extensions for specified module.
+        Determine dictionary with $MODULEPATH extensions for specified modules.
         """
-        modtxt = self.read_module_file(mod_name)
-        useregex = re.compile(r"^\s*module use\s+(.*)$", re.M)
-        exts = useregex.findall(modtxt)
+        # copy environment so we can restore it
+        orig_env = os.environ.copy()
 
-        return exts
+        modpath_exts = {}
+        for mod_name in mod_names:
+            modtxt = self.read_module_file(mod_name)
+            useregex = re.compile(r"^\s*module use\s+(.*)$", re.M)
+            exts = useregex.findall(modtxt)
+
+            modpath_exts.update({mod_name: exts})
+
+            # load this module, since it may extend $MODULEPATH to make other modules available
+            # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
+            self.load([mod_name])
+
+        # purge loaded modules and restore original environment
+        self.purge()
+        modify_env(os.environ, orig_env)
+
+        return modpath_exts
+
+    def path_to_top_of_module_tree(self, top_paths, mod_name, full_mod_subdir, deps, modpath_exts=None):
+        """
+        Recursively determine path to the top of the module tree,
+        for given module, module subdir and list of $MODULEPATH extensions per dependency module.
+        """
+        # example, when building HPL/2.1 with gompi toolchain in a Core/Compiler/MPI hierarchy:
+        # before start of while loop: full_mod_subdir for HPL/2.1 == 'MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.4'
+        # 1st iteration: find & exclude module that extends $MODULEPATH with MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.4,
+        #                => OpenMPI/1.6.4 (in 'Compiler/GCC/4.8.2' subdir);
+        #                recurse with full_mod_subdir = 'Compiler/GCC/4.8.2'
+        # 2nd iteration: find & exclude module that extends $MODULEPATH with Compiler/GCC/4.8.2
+        #                => GCC/4.8.2 (in 'Core' subdir; recurse with full_mod_subdir = 'Core'
+        # 3rd iteration: try to find module that extends $MODULEPATH with Core => no such module, so exit while loop
+        # copy environment so we can restore it
+        orig_env = os.environ.copy()
+
+        path = []
+        if modpath_exts is None:
+            modpath_exts = self.modpath_extensions_for(deps)
+            _log.debug("Module path extensions for dependencies: %s" % modpath_exts)
+
+        _log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
+
+        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
+        if any([os.path.samefile(full_mod_subdir, p) for p in top_paths]):
+            self.log.debug("Top of module tree reached with %s (module subdir: %s)" % (mod_name, full_mod_subdir))
+        else:
+            for dep in deps:
+                # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
+                # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
+                full_modpath_exts = modpath_exts[dep]
+                if any([os.path.samefile(full_mod_subdir, e) for e in full_modpath_exts]):
+                    # figure out module subdir for this dep, so we can recurse
+                    modfile_path = self.modulefile_path(dep)
+                    # full path to module subdir is simply path to module file without (short) module name
+                    full_mod_subdir = modfile_path[:-len(dep)-1]
+
+                    path.append(dep)
+                    tup = (dep, full_mod_subdir, modpath_exts[dep])
+                    _log.debug("Excluded dependency %s (subdir: %s) with module path extensions %s" % tup)
+
+                    break
+
+                # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
+                # this is required to obtain the corresponding module file paths (via 'module show')
+                self.load([dep])
+
+            self.purge()
+            modify_env(os.environ, orig_env)
+
+        # recurse if we've found another step up to the top; if not, we must have reached the top
+        if path:
+            _log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, path))
+            path.extend(self.path_to_top_of_module_tree(top_paths, path[-1], full_mod_subdir, deps,
+                                                        modpath_exts=modpath_exts))
+        else:
+            _log.debug("Path not extended, we must have reached the top of the module tree")
+
+        _log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
+        return path
 
     def update(self):
         """Update after new modules were added."""
