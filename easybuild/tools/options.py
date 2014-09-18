@@ -62,7 +62,7 @@ from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
-from vsc.utils.missing import any
+from vsc.utils.missing import any, avail_subclasses_in
 
 
 class EasyBuildOptions(GeneralOption):
@@ -496,69 +496,40 @@ class EasyBuildOptions(GeneralOption):
 
         return "\n".join(txt)
 
-    def avail_classes_tree(self, classes, classNames, detailed, depth=0):
+    def avail_classes_tree(self, class_hierarchy, subclasses, detailed, depth=0):
         """Print list of classes as a tree."""
         txt = []
-        for className in classNames:
-            classInfo = classes[className]
+        for subclass in subclasses:
+            children = class_hierarchy[subclass]
             if detailed:
-                txt.append("%s|-- %s (%s)" % ("|   " * depth, className, classInfo['module']))
+                txt.append("%s|-- %s (%s)" % ("|   " * depth, subclass.__name__, subclass.__module__))
             else:
-                txt.append("%s|-- %s" % ("|   " * depth, className))
-            if 'children' in classInfo:
-                txt.extend(self.avail_classes_tree(classes, classInfo['children'], detailed, depth + 1))
+                txt.append("%s|-- %s" % ("|   " * depth, subclass.__name__))
+            txt.extend(self.avail_classes_tree(class_hierarchy, children, detailed, depth + 1))
         return txt
 
     def avail_easyblocks(self):
         """Get a class tree for easyblocks."""
         detailed = self.options.list_easyblocks == "detailed"
-        module_regexp = re.compile(r"^([^_].*)\.py$")
+        txt = []
 
         # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
         search_toolchain('')
 
-        for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
-            __import__(package)
+        easyblock_pkgs = ["easybuild.easyblocks", "easybuild.easyblocks.generic"]
+        for base_class in [EasyBlock, Extension]:
+            subclasses = {}
+            for package in easyblock_pkgs:
+                subclasses.update(avail_subclasses_in(base_class, package, include_base_class=True))
 
-            # determine paths for this package
-            paths = sys.modules[package].__path__
-
-            # import all modules in these paths
-            for path in paths:
-                if os.path.exists(path):
-                    for f in os.listdir(path):
-                        res = module_regexp.match(f)
-                        if res:
-                            __import__("%s.%s" % (package, res.group(1)))
-
-        def add_class(classes, cls):
-            """Add a new class, and all of its subclasses."""
-            children = cls.__subclasses__()
-            classes.update({cls.__name__: {
-                                           'module': cls.__module__,
-                                           'children': [x.__name__ for x in children]
-                                           }
-                            })
-            for child in children:
-                add_class(classes, child)
-
-        roots = [EasyBlock, Extension]
-
-        classes = {}
-        for root in roots:
-            add_class(classes, root)
-
-        # Print the tree, start with the roots
-        txt = []
-        for root in roots:
-            root = root.__name__
+            # print the tree, start with the base_class
             if detailed:
-                txt.append("%s (%s)" % (root, classes[root]['module']))
+                txt.append("%s (%s)" % (base_class.__name__, base_class.__module__))
             else:
-                txt.append("%s" % root)
-            if 'children' in classes[root]:
-                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], detailed))
-                txt.append("")
+                txt.append("%s" % base_class.__name__)
+            bubclass_names = [c.__name__ for c in subclasses[base_class]]
+            txt.extend(self.avail_classes_tree(subclasses, subclasses[base_class], detailed))
+            txt.append("")
 
         return "\n".join(txt)
 
