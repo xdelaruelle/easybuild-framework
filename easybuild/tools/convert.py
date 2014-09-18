@@ -31,7 +31,7 @@ This module implements all supported formats and their converters
 import re
 
 from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, nub
+from vsc.utils.missing import get_subclasses
 from vsc.utils.wrapper import Wrapper
 
 _log = fancylogger.getLogger('tools.convert', fname=False)
@@ -217,7 +217,7 @@ class ListOfStringsAndDictOfStrings(Convert):
 
 def get_convert_class(class_name):
     """Return the Convert class with specified class name class_name"""
-    res = [x for x in nub(get_subclasses(Convert)) if x.__name__ == class_name]
+    res = [x for x in get_subclasses(Convert) if x.__name__ == class_name]
     if len(res) == 1:
         return res[0]
     else:

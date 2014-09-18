@@ -37,7 +37,7 @@ import copy
 import re
 import sys
 from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, nub
+from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.toolchain
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -99,7 +99,7 @@ def search_toolchain(name):
         _log.debug("Skipping importing of toolchain modules, processing of toolchain constants is already done.")
 
     # obtain all subclasses of toolchain
-    found_tcs = nub(get_subclasses(Toolchain))
+    found_tcs = get_subclasses(Toolchain)
 
     # filter found toolchain subclasses based on whether they can be used a toolchains
     found_tcs = [tc for tc in found_tcs if tc._is_toolchain_for(None)]
