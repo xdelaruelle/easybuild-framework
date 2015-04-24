@@ -322,6 +322,14 @@ class ModulesTest(EnhancedTestCase):
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
+    def test_complete_mod_name(self):
+        """Test complete_mod_name method."""
+        modtool = modules_tool()
+        self.assertEqual(modtool.complete_mod_name('toy/0.0'), 'toy/0.0')
+        self.assertEqual(modtool.complete_mod_name('toy'), 'toy/0.0')
+        self.assertEqual(modtool.complete_mod_name('GCC/4.7.2'), 'GCC/4.7.2')
+        self.assertEqual(modtool.complete_mod_name('GCC'), 'GCC/4.6.4')  # marked as default, not lasted version
+
 
 def suite():
     """ returns all the testcases in this module """

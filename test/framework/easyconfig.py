@@ -1047,8 +1047,8 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
-        ectxt += "\ndependencies += [('foobar/1.2.3', EXTERNAL_MODULE)]"
-        ectxt += "\nbuilddependencies = [('somebuilddep/0.1', EXTERNAL_MODULE)]"
+        ectxt += "\ndependencies += [('toy/0.0', EXTERNAL_MODULE)]"
+        ectxt += "\nbuilddependencies = [('GCC', EXTERNAL_MODULE)]"  # note: versionless
         write_file(toy_ec, ectxt)
 
         build_options = {
@@ -1060,18 +1060,18 @@ class EasyConfigTest(EnhancedTestCase):
 
         builddeps = ec.builddependencies()
         self.assertEqual(len(builddeps), 1)
-        self.assertEqual(builddeps[0]['short_mod_name'], 'somebuilddep/0.1')
-        self.assertEqual(builddeps[0]['full_mod_name'], 'somebuilddep/0.1')
+        self.assertEqual(builddeps[0]['short_mod_name'], 'GCC/4.6.4')
+        self.assertEqual(builddeps[0]['full_mod_name'], 'GCC/4.6.4')
         self.assertEqual(builddeps[0]['external_module'], True)
 
         deps = ec.dependencies()
         self.assertEqual(len(deps), 3)
-        self.assertEqual([d['short_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
-        self.assertEqual([d['full_mod_name'] for d in deps], ['ictce/4.1.13', 'foobar/1.2.3', 'somebuilddep/0.1'])
+        self.assertEqual([d['short_mod_name'] for d in deps], ['ictce/4.1.13', 'toy/0.0', 'GCC/4.6.4'])
+        self.assertEqual([d['full_mod_name'] for d in deps], ['ictce/4.1.13', 'toy/0.0', 'GCC/4.6.4'])
         self.assertEqual([d['external_module'] for d in deps], [False, True, True])
 
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
-        metadatatxt = '\n'.join(['[foobar/1.2.3]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])
+        metadatatxt = '\n'.join(['[toy/0.0]', 'name = foo,bar', 'version = 1.2.3,3.2.1', 'prefix = /foo/bar'])
         write_file(metadata, metadatatxt)
         cfg = init_config(args=['--external-modules-metadata=%s' % metadata])
         build_options = {
@@ -1080,7 +1080,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
         ec = EasyConfig(toy_ec)
-        self.assertEqual(ec.dependencies()[1]['short_mod_name'], 'foobar/1.2.3')
+        self.assertEqual(ec.dependencies()[1]['short_mod_name'], 'toy/0.0')
         self.assertEqual(ec.dependencies()[1]['external_module'], True)
         metadata = {
             'name': ['foo', 'bar'],

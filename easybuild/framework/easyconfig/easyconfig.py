@@ -50,7 +50,7 @@ from easybuild.tools.filetools import decode_class_name, encode_class_name, read
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
-from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name, modules_tool
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import get_toolchain
@@ -170,6 +170,8 @@ class EasyConfig(object):
         }
 
         self.external_modules_metadata = build_option('external_modules_metadata')
+
+        self.modules_tool = modules_tool()
 
         # parse easyconfig file
         self.build_specs = build_specs
@@ -582,14 +584,19 @@ class EasyConfig(object):
             if dep and dep[-1] == EXTERNAL_MODULE_MARKER:
                 if len(dep) == 2:
                     dependency['external_module'] = True
-                    dependency['short_mod_name'] = dep[0]
-                    dependency['full_mod_name'] = dep[0]
-                    if dep[0] in self.external_modules_metadata:
-                        dependency['external_module_metadata'].update(self.external_modules_metadata[dep[0]])
+
+                    # complete the provided module name, i.e. make sure the version bit is included;
+                    # module name may be specified versionless
+                    mod_name = self.modules_tool.complete_mod_name(dep[0])
+                    dependency['short_mod_name'] = mod_name
+                    dependency['full_mod_name'] = mod_name
+
+                    if mod_name in self.external_modules_metadata:
+                        dependency['external_module_metadata'].update(self.external_modules_metadata[mod_name])
                         self.log.info("Updated dependency info with available metadata for external module %s: %s",
-                                      dep[0], dependency['external_module_metadata'])
+                                      mod_name, dependency['external_module_metadata'])
                     else:
-                        self.log.info("No metadata available for external module %s", dep[0])
+                        self.log.info("No metadata available for external module %s", mod_name)
                 else:
                     raise EasyBuildError("Incorrect external dependency specification: %s", dep)
             else:

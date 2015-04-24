@@ -425,14 +425,14 @@ class ModulesTool(object):
         """
         return self.run_module('show', mod_name, return_output=True)
 
-    def get_value_from_modulefile(self, mod_name, regex):
+    def get_value_from_modulefile(self, mod_name, regex, force=False):
         """
         Get info from the module file for the specified module.
 
         @param mod_name: module name
         @param regex: (compiled) regular expression, with one group
         """
-        if self.exist([mod_name])[0]:
+        if self.exist([mod_name])[0] or force:
             modinfo = self.show(mod_name)
             self.log.debug("modinfo: %s" % modinfo)
             res = regex.search(modinfo)
@@ -444,12 +444,27 @@ class ModulesTool(object):
         else:
             raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
 
-    def modulefile_path(self, mod_name):
+    def modulefile_path(self, mod_name, force=False):
         """Get the path of the module file for the specified module."""
         # (possible relative) path is always followed by a ':', and may be prepended by whitespace
         # this works for both environment modules and Lmod
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
-        return self.get_value_from_modulefile(mod_name, modpath_re)
+        return self.get_value_from_modulefile(mod_name, modpath_re, force=force)
+
+    def complete_mod_name(self, mod_name):
+        """Complete provided module name, i.e. make sure version part is included as well."""
+        mod_name_parts = mod_name.split(os.path.sep)
+        modfile_path = self.modulefile_path(mod_name, force=True)
+        modfile_path_parts = modfile_path.split(os.path.sep)
+
+        res = os.path.join(*modfile_path_parts[-len(mod_name_parts):])
+        if res != mod_name:
+            res = os.path.join(*modfile_path_parts[-len(mod_name_parts)-1:])
+            if not res.startswith(mod_name):
+                raise EasyBuildError("Failed to determine complete module name for %s based on module file path %s",
+                                     mod_name, modfile_path)
+
+        return res
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
