@@ -53,6 +53,14 @@ class RepositoryTest(EnhancedTestCase):
         self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
 
+    def tearDown(self):
+        """Test cleanup."""
+        try:
+            shutil.rmtree(self.path, True)
+        except OSError:
+            pass
+        super(RepositoryTest, self).tearDown()
+
     def test_filerepo(self):
         """Test using FileRepository."""
         repo = FileRepository(self.path)

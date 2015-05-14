@@ -69,6 +69,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
         
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
+    def tearDown(self):
+        """Test cleanup."""
+        try:
+            shutil.rmtree(self.modgen.app.installdir)
+        except OSError:
+            pass
+        super(ModuleGeneratorTest, self).tearDown()
+
     def test_descr(self):
         """Test generation of module description (which includes '#%Module' header)."""
 

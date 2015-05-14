@@ -151,11 +151,12 @@ def main(testing_data=(None, None, None)):
 
     # steer behavior when testing main
     testing = testing_data[0] is not None
-    args, logfile, do_build = testing_data
+    args, logfile, do_build, loghandler = testing_data
 
     # initialise options
     eb_go = eboptions.parse_options(args=args)
     options = eb_go.options
+    #sys.stderr.write('unittest_file: %s' % options.unittest_file)
     orig_paths = eb_go.args
 
     # set umask (as early as possible)
@@ -168,7 +169,7 @@ def main(testing_data=(None, None, None)):
 
     # initialise logging for main
     global _log
-    _log, logfile = init_logging(logfile, logtostdout=options.logtostdout, testing=testing)
+    _log, logfile, loghandler = init_logging(logfile, logtostdout=options.logtostdout, testing=testing, filehandler=loghandler)
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -328,11 +329,15 @@ def main(testing_data=(None, None, None)):
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
+    sys.stderr.write('unittest_file: %s' % options.unittest_file)
+    if options.unittest_file:
+        sys.stderr.write("Stop logging to %s\n" % options.unittest_file)
+        stop_logging(options.unittest_file, eb_go.unittest_loghandler)
+
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir path)
-    stop_logging(logfile, logtostdout=options.logtostdout)
+    stop_logging(logfile, loghandler, logtostdout=options.logtostdout)
     if overall_success:
         cleanup(logfile, eb_tmpdir, testing)
-
 
 if __name__ == "__main__":
     try:

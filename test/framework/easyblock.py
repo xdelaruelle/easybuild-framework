@@ -65,6 +65,16 @@ class EasyBlockTest(EnhancedTestCase):
         self.test_tmp_logdir = tempfile.mkdtemp()
         os.environ['EASYBUILD_TMP_LOGDIR'] = self.test_tmp_logdir
 
+    def tearDown(self):
+        """Test cleanup."""
+        try:
+            os.remove(self.eb_file)
+            shutil.rmtree(self.test_tmp_logdir)
+        except OSError:
+            pass
+
+        super(EasyBlockTest, self).tearDown()
+
     def test_empty(self):
         self.contents = "# empty"
         self.writeEC()

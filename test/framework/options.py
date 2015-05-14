@@ -301,6 +301,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             _stdout = sys.stdout
 
             fd, fn = tempfile.mkstemp()
+            os.close(fd)
             fh = os.fdopen(fd, 'w')
             sys.stdout = fh
 
@@ -380,9 +381,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
                     self.assertTrue(regex.search(logtxt), msg)
 
-            if os.path.exists(dummylogfn):
-                os.remove(dummylogfn)
-
         for fmt in [None, 'txt', 'rst']:
             run_test(fmt=fmt)
             run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'], fmt=fmt)
@@ -420,9 +418,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertEqual(n, 1, "Toolchain %s is only mentioned once (count: %d)" % (tc, n))
             # make sure definition is correct (each element only named once, in alphabetical order)
             self.assertEqual("\t%s: %s" % (tc, ', '.join(tcelems)), res[0])
-
-        if os.path.exists(dummylogfn):
-            os.remove(dummylogfn)
 
     def test_avail_lists(self):
         """Test listing available values of certain types."""
@@ -1039,6 +1034,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tempfile_tmpdir = tempfile.mkdtemp()
         self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'eb-')))
         fd, tempfile_tmpfile = tempfile.mkstemp()
+        os.close(fd)
         self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'eb-')))
 
         # cleanup

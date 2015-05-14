@@ -34,6 +34,7 @@ import re
 import shutil
 import sys
 import tempfile
+from logging.handlers import RotatingFileHandler
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
@@ -48,10 +49,11 @@ from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.config import module_classes, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import mkdir, read_file
+from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions
+from easybuild.tools.run import run_cmd
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -79,9 +81,25 @@ for key in os.environ.keys():
 class EnhancedTestCase(_EnhancedTestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
 
+    _prev_test_prefix = None
+
     def setUp(self):
         """Set up testcase."""
         super(EnhancedTestCase, self).setUp()
+
+        sys.stderr.write('+++ %s\n' % self)
+        #print('+++ %s\n' % self)
+        #print run_cmd('ls -lh %s' % os.environ.get('EB_TEST_GLOBAL_LOG', ''), simple=False)[0].strip()
+        #eb_test_tmpdir = os.environ.get('EB_TEST_TMPDIR', tempfile.gettempdir())
+        #print run_cmd('df -h', simple=False)[0].strip()
+        #print run_cmd('du -sh /var/tmp/*', simple=False)[0].strip()
+        #print run_cmd('du -sh %s' % eb_test_tmpdir, simple=False)[0].strip()
+        #print os.listdir(eb_test_tmpdir)
+        #print run_cmd('du -sh %s/jobs/easybuild-framework_unit-test_boegel_test' % os.environ['HOME'], simple=False, log_ok=False)[0].strip()
+        #print run_cmd('du -sh %s' % os.getcwd(), simple=False, log_ok=False)[0].strip()
+        #print run_cmd('du -sh /data/jenkins/workspace/easybuild-framework_unit-test_boegel_test', simple=False, log_ok=False)[0].strip()
+        #print run_cmd('ls -lrtdh $HOME/* $HOME/*/* $HOME/*/*/* | egrep "May 13 19|May 13 2" | egrep -v "2013|2014"', simple=False)[0].strip()
+        #print '\n'
 
         self.orig_tmpdir = tempfile.gettempdir()
         # use a subdirectory for this test (which we can clean up easily after the test completes)
@@ -90,6 +108,8 @@ class EnhancedTestCase(_EnhancedTestCase):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
+        #sys.stderr.write('RotatingFileHandler\n')
+        self.loghandler = RotatingFileHandler(self.logfile, maxBytes=100*1024, backupCount=1)
         self.cwd = os.getcwd()
 
         # keep track of original environment to restore
@@ -99,7 +119,7 @@ class EnhancedTestCase(_EnhancedTestCase):
         self.orig_sys_path = sys.path[:]
 
         self.orig_paths = {}
-        for path in ['buildpath', 'installpath', 'sourcepath']:
+        for path in ['buildpath', 'installpath', 'sourcepath', 'prefix']:
             self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
 
         testdir = os.path.dirname(os.path.abspath(__file__))
@@ -144,7 +164,9 @@ class EnhancedTestCase(_EnhancedTestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
+        #sys.stderr.write('tearDown\n')
         super(EnhancedTestCase, self).tearDown()
+        #sys.stderr.write('tearDown 2\n')
         os.chdir(self.cwd)
         modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
@@ -152,15 +174,26 @@ class EnhancedTestCase(_EnhancedTestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
+        #sys.stderr.write('tearDown 3\n')
+        self.log.removeHandler(self.loghandler)
+        self.loghandler.close()
+        #sys.stderr.write('tearDown 4\n')
+
+        init_config()
+        #sys.stderr.write('tearDown 5\n')
+
         # cleanup
-        for path in [self.logfile, self.test_buildpath, self.test_installpath, self.test_prefix]:
+        if self._prev_test_prefix:
             try:
-                if os.path.isdir(path):
-                    shutil.rmtree(path)
-                else:
-                    os.remove(path)
+                #sys.stderr.write('tearDown rmtree %s\n' % self.test_prefix)
+                shutil.rmtree(self._prev_test_prefix)
             except OSError, err:
                 pass
+            #sys.stderr.write('tearDown 6\n')
+        self._prev_test_prefix = self.test_prefix
+
+        # HACK
+        #mkdir(self.test_prefix)
 
         # restore original 'parent' tmpdir
         for var in ['TMPDIR', 'TEMP', 'TMP']:
@@ -169,13 +202,13 @@ class EnhancedTestCase(_EnhancedTestCase):
         # reset to make sure tempfile picks up new temporary directory to use
         tempfile.tempdir = None
 
-        for path in ['buildpath', 'installpath', 'sourcepath']:
+        for path in ['buildpath', 'installpath', 'sourcepath', 'prefix']:
             if self.orig_paths[path] is not None:
                 os.environ['EASYBUILD_%s' % path.upper()] = self.orig_paths[path]
             else:
                 if 'EASYBUILD_%s' % path.upper() in os.environ:
                     del os.environ['EASYBUILD_%s' % path.upper()]
-        init_config()
+        #sys.stderr.write('tearDown end\n')
 
     def reset_modulepath(self, modpaths):
         """Reset $MODULEPATH with specified paths."""
@@ -205,13 +238,17 @@ class EnhancedTestCase(_EnhancedTestCase):
         env_before = copy.deepcopy(os.environ)
 
         try:
-            main((args, logfile, do_build))
+            #sys.stderr.write('calling main (logfile: %s)\n' % logfile)
+            main((args, logfile, do_build, self.loghandler))
+            #sys.stderr.write('done with main\n')
         except SystemExit:
             pass
+            #sys.stderr.write('main systemexit\n')
         except Exception, err:
             myerr = err
             if verbose:
                 print "err: %s" % err
+            #sys.stderr.write("err: %s\n" % err)
 
         logtxt = read_file(logfile)
 

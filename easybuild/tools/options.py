@@ -113,6 +113,8 @@ class EasyBuildOptions(GeneralOption):
 
         super(EasyBuildOptions, self).__init__(*args, **kwargs)
 
+        self.unittest_loghandler = None
+
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -416,7 +418,7 @@ class EasyBuildOptions(GeneralOption):
 
         # log to specified value of --unittest-file
         if self.options.unittest_file:
-            fancylogger.logToFile(self.options.unittest_file)
+            self.unittest_loghandler = fancylogger.logToFile(self.options.unittest_file, filehandler=None)
 
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
@@ -567,6 +569,9 @@ class EasyBuildOptions(GeneralOption):
 
         if self.options.unittest_file:
             self.log.info(msg)
+            fancylogger.logToFile(self.options.unittest_file, filehandler=self.unittest_loghandler, enable=False)
+            self.unittest_loghandler.close()
+            sys.stderr.write('_postprocess_list_avail: %s\n' % self.options.unittest_file)
         else:
             print msg
         sys.exit(0)

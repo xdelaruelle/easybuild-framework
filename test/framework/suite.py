@@ -30,12 +30,43 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import __builtin__
+openfiles = set()
+oldfile = __builtin__.file
+class newfile(oldfile):
+    def __init__(self, *args):
+        self.x = args[0]
+        #sys.stderr.write("### OPENING %s ###\n" % str(self.x))
+        oldfile.__init__(self, *args)
+        openfiles.add(self)
+
+    def close(self):
+        #sys.stderr.write("### CLOSING %s ###\n" % str(self.x))
+        oldfile.close(self)
+        openfiles.remove(self)
+oldopen = __builtin__.open
+def newopen(*args):
+    return newfile(*args)
+__builtin__.file = newfile
+__builtin__.open = newopen
+
+def printOpenFiles():
+    print "### %d OPEN FILES: [%s]" % (len(openfiles), ", ".join(f.x for f in openfiles))
+
 import glob
 import os
 import sys
 import tempfile
 import unittest
 from vsc.utils import fancylogger
+
+origLogToFile = fancylogger.logToFile
+def tweakedLogToFile(*args, **kwargs):
+    """Modified logToFile, with 100KB max log file size and no rotation."""
+    kwargs['max_bytes'] = 1024*1024
+    kwargs['backup_count'] = 1
+    return origLogToFile(*args, **kwargs)
+fancylogger.logToFile = tweakedLogToFile
 
 # initialize EasyBuild logging, so we disable it
 from easybuild.tools.build_log import EasyBuildError
@@ -86,7 +117,7 @@ import test.framework.variables as v
 
 # make sure temporary files can be created/used
 try:
-    set_tmpdir(raise_error=True)
+    os.environ['EB_TEST_TMPDIR'] = set_tmpdir(raise_error=True)
 except EasyBuildError, err:
     sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
     sys.exit(1)
@@ -96,11 +127,13 @@ fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
 os.close(fd)
 os.remove(log_fn)
 fancylogger.logToFile(log_fn)
+os.environ['EB_TEST_GLOBAL_LOG'] = log_fn
 log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, p]
+tests = [gen, bl, o]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 

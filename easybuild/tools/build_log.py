@@ -179,29 +179,31 @@ fancylogger.logToFile(filename=os.devnull)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, testing=False):
+def init_logging(logfile, logtostdout=False, testing=False, filehandler=None):
     """Initialize logging."""
     if logtostdout:
-        fancylogger.logToScreen(enable=True, stdout=True)
+        handler = fancylogger.logToScreen(enable=True, stdout=True)
     else:
         if logfile is None:
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
             fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
             os.close(fd)
 
-        fancylogger.logToFile(logfile)
+        handler = fancylogger.logToFile(logfile, filehandler=filehandler)
         print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
 
     log = fancylogger.getLogger(fname=False)
 
-    return log, logfile
+    return log, logfile, handler
 
 
-def stop_logging(logfile, logtostdout=False):
+def stop_logging(logfile, handler, logtostdout=False):
     """Stop logging."""
     if logtostdout:
-        fancylogger.logToScreen(enable=False, stdout=True)
-    fancylogger.logToFile(logfile, enable=False)
+        fancylogger.logToScreen(enable=False, handler=handler, stdout=True)
+    fancylogger.logToFile(logfile, enable=False, filehandler=handler)
+    if handler:
+        handler.close()
 
 
 def get_log(name=None):
