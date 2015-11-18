@@ -39,11 +39,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 
-try:
-    import yaml
-except ImportError:
-    pass
-
 
 _log = fancylogger.getLogger('easyconfig.format.yeb', fname=False)
 
@@ -63,6 +58,7 @@ def yaml_join(loader, node):
     seq = loader.construct_sequence(node)
     return ''.join([str(i) for i in seq])
 
+
 def yaml_versionmajorminor(loader, node):
     """
     defines custom YAML function to get major version.
@@ -80,9 +76,14 @@ def yaml_versionmajorminor(loader, node):
     return '.'.join(pyver.split('.')[:2])
 
 
-# register the tag handlers
-yaml.Loader.add_constructor(u'!join', yaml_join)
-yaml.Loader.add_constructor(u'!majmin', yaml_versionmajorminor)
+try:
+    import yaml
+    # register the tag handlers
+    yaml.add_constructor('!join', yaml_join)
+    yaml.Loader.add_constructor(u'!majmin', yaml_versionmajorminor)
+except ImportError:
+    pass
+
 
 class FormatYeb(EasyConfigFormat):
     """Support for easyconfig YAML format"""
@@ -158,4 +159,3 @@ def is_yeb_format(filename, rawcontent):
             if line.startswith('name: '):
                 isyeb = True
     return isyeb
-

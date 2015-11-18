@@ -29,7 +29,7 @@ Unit tests for .yeb easyconfig format
 @author: Kenneth Hoste (Ghent University)
 """
 import os
-import yaml
+import sys
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
@@ -37,6 +37,12 @@ import easybuild.tools.build_log
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.format.yeb import is_yeb_format
 from easybuild.tools.filetools import read_file
+
+try:
+    import yaml
+except ImportError:
+    pass
+
 
 class YebTest(EnhancedTestCase):
     """ Testcase for run module """
@@ -54,23 +60,28 @@ class YebTest(EnhancedTestCase):
 
     def test_parse_yeb(self):
         """Test parsing of .yeb easyconfigs."""
+        if 'yaml' not in sys.modules:
+            print "Skipping test_parse_yeb (no PyYAML available)"
+            return
+
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyconfigs = os.path.join(testdir, 'easyconfigs')
         test_yeb_easyconfigs = os.path.join(testdir, 'easyconfigs', 'yeb')
 
         # test parsing
-        test_files = {
-            'bzip2.yeb': 'bzip2-1.0.6-GCC-4.9.2.eb',
-            'gzip.yeb': 'gzip-1.6-gcc-4.9.2.eb',
-            'goolf-1.4.10.yeb': 'goolf-1.4.10.eb',
-            'ictce-4.1.13.yeb': 'ictce-4.1.13.eb'
-        }
+        test_files = [
+            'bzip2-1.0.6-GCC-4.9.2',
+            'gzip-1.6-GCC-4.9.2',
+            'goolf-1.4.10',
+            'ictce-4.1.13',
+            'SQLite-3.8.10.2-goolf-1.4.10',
+            'Python-2.7.10-ictce-4.1.13',
+        ]
 
-        for yeb_file, eb_file in test_files.items():
-            ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, yeb_file))
-
+        for filename in test_files:
+            ec_yeb = EasyConfig(os.path.join(test_yeb_easyconfigs, '%s.yeb' % filename))
             # compare with parsed result of .eb easyconfig
-            ec_eb = EasyConfig(os.path.join(test_easyconfigs, eb_file))
+            ec_eb = EasyConfig(os.path.join(test_easyconfigs, '%s.eb' % filename))
 
             no_match = False
             for key in sorted(ec_yeb.asdict()):
@@ -85,7 +96,7 @@ class YebTest(EnhancedTestCase):
     def test_is_yeb_format(self):
         """ Test is_yeb_format function """
         testdir = os.path.dirname(os.path.abspath(__file__))
-        test_yeb = os.path.join(testdir, 'easyconfigs', 'yeb', 'bzip2.yeb')
+        test_yeb = os.path.join(testdir, 'easyconfigs', 'yeb', 'bzip2-1.0.6-GCC-4.9.2.yeb')
         raw_yeb = read_file(test_yeb)
 
         self.assertTrue(is_yeb_format(test_yeb, None))
@@ -100,6 +111,10 @@ class YebTest(EnhancedTestCase):
 
     def test_join(self):
         """ Test yaml_join function """
+        # skip test if yaml module was not loaded
+        if 'yaml' not in sys.modules:
+            print "Skipping test_join (no PyYAML available)"
+            return
 
         stream = [
             "variables:",
