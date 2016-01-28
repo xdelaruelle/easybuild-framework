@@ -115,7 +115,7 @@ class ModuleNamingScheme(object):
         # by default: make a symlink from moduleclass subdirectory of $MODULEPATH
         return [ec['moduleclass']]
 
-    def det_modpath_extensions(self, ec):
+    def det_modpath_extensions(self, ec, pre_deps=False):
         """
         Determine list of subdirectories for which to extend $MODULEPATH with when this module is loaded (if any).
 

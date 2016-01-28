@@ -70,7 +70,7 @@ class CategorizedHMNS(HierarchicalMNS):
 
         return os.path.join(basedir, moduleclass)
 
-    def det_modpath_extensions(self, ec):
+    def det_modpath_extensions(self, ec, pre_deps=False):
         """
         Determine module path extensions, if any. Appends all known (valid)
         module classes to the base path of the corresponding hierarchy level.
@@ -79,7 +79,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Compiler/GCC/4.8.3/<moduleclasses> (for GCC/4.8.3 module),
         MPI/GCC/4.8.3/OpenMPI/1.6.5/<moduleclasses> (for OpenMPI/1.6.5 module)
         """
-        basepaths = super(CategorizedHMNS, self).det_modpath_extensions(ec)
+        basepaths = super(CategorizedHMNS, self).det_modpath_extensions(ec, pre_deps=pre_deps)
 
         return self.categorize_paths(basepaths)
 

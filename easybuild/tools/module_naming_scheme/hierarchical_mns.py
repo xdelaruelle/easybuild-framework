@@ -143,17 +143,21 @@ class HierarchicalMNS(ModuleNamingScheme):
         # symlinks are not very useful in the context of a hierarchical MNS
         return []
 
-    def det_modpath_extensions(self, ec):
+    def det_modpath_extensions(self, ec, pre_deps=False):
         """
         Determine module path extensions, if any.
         Examples: Compiler/GCC/4.8.3 (for GCC/4.8.3 module), MPI/GCC/4.8.3/OpenMPI/1.6.5 (for OpenMPI/1.6.5 module)
         """
+        # @ocaisa: please explain :)
+        if pre_deps:
+            return []
+
         modclass = ec['moduleclass']
         tc_comps = det_toolchain_compilers(ec)
         tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
 
         paths = []
-        if modclass == MODULECLASS_COMPILER or ec['name'] in ['CUDA']:
+        if modclass == MODULECLASS_COMPILER or ec['name'] in ['CUDA'] and not pre_deps:
             # obtain list of compilers based on that extend $MODULEPATH in some way other than <name>/<version>
             extend_comps = []
             # exclude GCC for which <name>/<version> is used as $MODULEPATH extension
@@ -181,7 +185,7 @@ class HierarchicalMNS(ModuleNamingScheme):
 
             paths.append(os.path.join(COMPILER, *comp_name_ver))
 
-        elif modclass == MODULECLASS_MPI:
+        elif modclass == MODULECLASS_MPI and not pre_deps:
             if tc_comp_info is None:
                 raise EasyBuildError("No compiler available in toolchain %s used to install MPI library %s v%s, "
                                      "which is required by the active module naming scheme.",

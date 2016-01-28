@@ -1034,13 +1034,13 @@ class EasyBlock(object):
 
         return ''.join(footer)
 
-    def make_module_extend_modpath(self):
+    def make_module_extend_modpath(self, pre_deps=False):
         """
         Include prepend-path statements for extending $MODULEPATH.
         """
         txt = ''
         if self.cfg['include_modpath_extensions']:
-            modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
+            modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg, pre_deps=pre_deps)
             self.log.debug("Including module path extensions returned by module naming scheme: %s", modpath_exts)
             full_path_modpath_extensions = [os.path.join(self.installdir_mod, ext) for ext in modpath_exts]
             # module path extensions must exist, otherwise loading this module file will fail
@@ -1051,7 +1051,7 @@ class EasyBlock(object):
             # add user-specific module path; use statement will be guarded so no need to create the directories
             user_modpath = build_option('subdir_user_modules')
             if user_modpath:
-                user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg)
+                user_modpath_exts = ActiveMNS().det_user_modpath_extensions(self.cfg, pre_deps=pre_deps)
                 user_modpath_exts = [os.path.join(user_modpath, e) for e in user_modpath_exts]
                 self.log.debug("Including user module path extensions returned by naming scheme: %s", user_modpath_exts)
                 txt += self.module_generator.use(user_modpath_exts, prefix=self.module_generator.getenv_cmd('HOME'),
@@ -1923,6 +1923,7 @@ class EasyBlock(object):
             txt += self.modules_header + '\n'
 
         txt += self.make_module_description()
+        txt += self.make_module_extend_modpath(pre_deps=True)
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()

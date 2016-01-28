@@ -1328,10 +1328,10 @@ class ActiveMNS(object):
         """
         return self.mns.det_module_symlink_paths(ec)
 
-    def det_modpath_extensions(self, ec):
+    def det_modpath_extensions(self, ec, pre_deps=False):
         """Determine modulepath extensions according to module naming scheme."""
         self.log.debug("Determining modulepath extensions for %s" % ec)
-        modpath_extensions = self.mns.det_modpath_extensions(self.check_ec_type(ec))
+        modpath_extensions = self.mns.det_modpath_extensions(self.check_ec_type(ec), pre_deps=pre_deps)
         self.log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
         return modpath_extensions
 
