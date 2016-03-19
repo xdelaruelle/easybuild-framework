@@ -1,0 +1,21 @@
+language: python
+python:
+  - "2.6"
+  - "2.7"
+addons:
+  apt:
+    packages:
+      - tcl8.5
+install:
+    # install vsc-base
+    - easy_install vsc-base
+    # install environment modules tool
+    - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
+    - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
+    - ./configure --prefix=$TRAVIS_BUILD_DIR && make && make install
+    - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$PATH
+    - source $TRAVIS_BUILD_DIR/Modules/3.2.10/init/bash
+script:
+    - export PYTHONPATH=$TRAVIS_BUILD_DIR
+    - cd $TRAVIS_BUILD_DIR/..
+    - python -m test.framework.suite
