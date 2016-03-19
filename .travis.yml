@@ -16,9 +16,14 @@ install:
     - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make && make install
+    # set up environment for environment modules tool
     - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$PATH
     - source $TRAVIS_BUILD_DIR/Modules/3.2.10/init/bash
 script:
+    # set up environment for EasyBuild framework tests
+    - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
+    # framework tests can not be run in cloned repository, due to Python packaging weirdness
     - cd $TRAVIS_BUILD_DIR/..
+    # TEST!
     - python -m test.framework.suite
