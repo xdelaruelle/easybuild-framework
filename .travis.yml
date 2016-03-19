@@ -5,6 +5,9 @@ python:
 addons:
   apt:
     packages:
+      - python-keyring
+      - python-setuptools
+      - python-yaml
       - tcl8.5
 install:
     # install vsc-base
