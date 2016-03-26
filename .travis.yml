@@ -34,7 +34,7 @@ install:
     - luarocks --local install luafilesystem
     - luarocks --local install luaposix
     - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
-    - tar xfz ${LMO_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
+    - tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make install
 script:
     # set up environment for modules tool
