@@ -13,11 +13,8 @@ env:
 addons:
   apt:
     packages:
-      # for environment modules (and Lmod)
+      # for environment modules/Lmod
       - tcl8.5
-      # for Lmod
-      - lua5.1
-      - luarocks
       # for EasyBuild
       - python-setuptools
       # for EasyBuild (optional)
@@ -30,10 +27,11 @@ install:
     - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make && make install
-    # install required Lua packages for Lmod
-    - luarocks --local install luafilesystem
-    - luarocks --local install luaposix
-    - eval $(luarocks path)
+    # install Lua that includes required Lua packages provided by Lmod
+    - wget http://downloads.sourceforge.net/project/lmod/lua-5.1.4.8.tar.gz
+    - tar xfz lua-5.1.4.8.tar.gz && cd lua-5.1.4.8
+    - ./configure --with-static=yes --prefix=$TRAVIS_BUILD_DIR && make && make install
+    - export PATH=$TRAVIS_BUILD_DIR/bin:$PATH
     # install Lmod
     - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
     - tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
