@@ -30,9 +30,11 @@ install:
     - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make && make install
-    # install Lmod
+    # install required Lua packages for Lmod
     - luarocks --local install luafilesystem
     - luarocks --local install luaposix
+    - eval $(luarocks path)
+    # install Lmod
     - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
     - tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make install
