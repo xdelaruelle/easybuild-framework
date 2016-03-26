@@ -5,11 +5,13 @@ python:
 env:
     global:
         - LMOD_VERSION=5.6.3
+        - ENV_MOD_INIT=$TRAVIS_BUILD_DIR/Modules/3.2.10/init/bash
+        - LMOD_INIT=$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/init/bash
     matrix:
         # each of these configurations will be tested, for each Python version
-        - MODULES_TOOL_INIT=$TRAVIS_BUILD_DIR/Modules/3.2.10/init/bash
-        - MODULES_TOOL_INIT=EASYBUILD_MODULES_TOOL=Lmod
-        - EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
+        - MOD_INIT=$ENV_MOD_INIT
+        - MOD_INIT=$LMOD_INIT EASYBUILD_MODULES_TOOL=Lmod
+        - MOD_INIT=$LMOD_INIT EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
 addons:
   apt:
     packages:
@@ -39,7 +41,7 @@ install:
 script:
     # set up environment for modules tool
     - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/libexec:$PATH
-    - source $MODULES_TOOL_INIT
+    - source $MOD_INIT
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
