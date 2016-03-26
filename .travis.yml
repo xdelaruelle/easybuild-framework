@@ -48,4 +48,4 @@ script:
     # framework tests can not be run in cloned repository, due to Python packaging weirdness
     - cd $TRAVIS_BUILD_DIR/..
     # TEST!
-    - python -m test.framework.suite
+    - python -O -m test.framework.suite
