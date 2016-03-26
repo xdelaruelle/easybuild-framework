@@ -1,7 +1,15 @@
 language: python
 python:
-  - "2.6"
-  - "2.7"
+  - '2.6'
+  - '2.7'
+env:
+    global:
+        - LMOD_VERSION=5.6.3
+    matrix:
+        # each of these configurations will be tested, for each Python version
+        - MODULES_TOOL_INIT=$TRAVIS_BUILD_DIR/Modules/3.2.10/init/bash
+        - MODULES_TOOL_INIT=EASYBUILD_MODULES_TOOL=Lmod
+        - EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
 addons:
   apt:
     packages:
@@ -9,17 +17,27 @@ addons:
       - python-setuptools
       - python-yaml
       - tcl8.5
+before_install:
+    - pip install hererocks
+    - hererocks lua_install -r^ --lua=5.1
+    - export PATH=$PATH:$PWD/lua_install/bin
 install:
-    # install vsc-base
+    # install vsc-base (& vsc-install)
     - easy_install vsc-base
-    # install environment modules tool
+    # install environment modules
     - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make && make install
-    # set up environment for environment modules tool
-    - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$PATH
-    - source $TRAVIS_BUILD_DIR/Modules/3.2.10/init/bash
+    # install Lmod
+    - luarocks install luafilesystem
+    - luarocks install luaposix
+    - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
+    - tar xfz ${LMO_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
+    - ./configure --prefix=$TRAVIS_BUILD_DIR && make install
 script:
+    # set up environment for modules tool
+    - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/libexec:$PATH
+    - source $MODULES_TOOL_INIT
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
