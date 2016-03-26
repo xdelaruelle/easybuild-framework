@@ -13,14 +13,16 @@ env:
 addons:
   apt:
     packages:
-      - python-keyring
-      - python-setuptools
-      - python-yaml
+      # for environment modules (and Lmod)
       - tcl8.5
-before_install:
-    - pip install hererocks
-    - hererocks lua_install -r^ --lua=5.1
-    - export PATH=$PATH:$PWD/lua_install/bin
+      # for Lmod
+      - lua5.1
+      - luarocks
+      # for EasyBuild
+      - python-setuptools
+      # for EasyBuild (optional)
+      - python-keyring
+      - python-yaml
 install:
     # install vsc-base (& vsc-install)
     - easy_install vsc-base
