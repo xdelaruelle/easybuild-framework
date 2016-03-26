@@ -31,8 +31,8 @@ install:
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make && make install
     # install Lmod
-    - luarocks install luafilesystem
-    - luarocks install luaposix
+    - luarocks --local install luafilesystem
+    - luarocks --local install luaposix
     - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
     - tar xfz ${LMO_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make install
