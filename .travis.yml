@@ -22,7 +22,7 @@ addons:
 before_install:
     # keyring is required to provide GitHub token to EasyBuild
     - pip install keyring
-    - pip install keyrings-alt
+    - pip install keyrings.alt
     # optional Python packages for EasyBuild
     - pip install autopep8
     - pip install PyYAML
