@@ -19,9 +19,11 @@ addons:
       - tcl8.5
       # for EasyBuild
       - python-setuptools
-      # for EasyBuild (optional)
-      - python-keyring
-      - python-yaml
+before_install:
+    # keyring is required to provide GitHub token to EasyBuild
+    - pip install keyring
+    # optional Python packages for EasyBuild
+    - pip install PyYAML
 install:
     # install vsc-base (& vsc-install)
     - easy_install vsc-base
