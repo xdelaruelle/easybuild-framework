@@ -10,8 +10,8 @@ env:
     matrix:
         # each of these configurations will be tested, for each Python version
         - MOD_INIT=$ENV_MOD_INIT
-        - MOD_INIT=$LMOD_INIT EASYBUILD_MODULES_TOOL=Lmod
-        - MOD_INIT=$LMOD_INIT EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
+        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
+        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
 addons:
   apt:
     packages:
@@ -47,5 +47,7 @@ script:
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
     # framework tests can not be run in cloned repository, due to Python packaging weirdness
     - cd $TRAVIS_BUILD_DIR/..
+    # install GitHub token
+    - python -c "import getpass, keyring; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
     - python -O -m test.framework.suite
