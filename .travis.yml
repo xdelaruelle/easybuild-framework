@@ -4,14 +4,18 @@ python:
   - 2.7
 env:
     global:
-        - ENV_MOD_INIT=$HOME/Modules/3.2.10/init/bash
+        - ENV_MOD_VERSION=3.2.10
+        - ENV_MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
+        - LMOD_LUA_VER=5.1.4.8
         - LMOD_VERSION=5.6.3
         - LMOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
     matrix:
         # each of these configurations will be tested, for each Python version
         - MOD_INIT=$ENV_MOD_INIT
-        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
-        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
+        - LMOD_VERSION=5.6.3 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
+        - LMOD_VERSION=5.6.3 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
+        - LMOD_VERSION=6.1 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
+        - LMOD_VERSION=6.1 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
 addons:
   apt:
     packages:
@@ -32,14 +36,15 @@ before_install:
     - git config --global user.name "Travis CI"
     - git config --global user.email "travis@travis-ci.org"
 install:
+    # install vsc-base (& vsc-install) dependencies for EasyBuild
     - easy_install vsc-base
     # install environment modules
-    - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
-    - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
+    - wget http://prdownloads.sourceforge.net/modules/modules-${ENV_MOD_VERSION}.tar.gz
+    - tar xfz modules-${ENV_MOD_VERSION}.tar.gz && cd modules-${ENV_MOD_VERSION}
     - ./configure --prefix=$HOME && make && make install
-    # install Lua that includes required Lua packages provided by Lmod
-    - wget http://downloads.sourceforge.net/project/lmod/lua-5.1.4.8.tar.gz
-    - tar xfz lua-5.1.4.8.tar.gz && cd lua-5.1.4.8
+    # install Lua that includes required Lua packages (provided by Lmod)
+    - wget http://downloads.sourceforge.net/project/lmod/lua-${LMOD_LUA_VER}.tar.gz
+    - tar xfz lua-${LMOD_LUA_VER}.tar.gz && cd lua-${LMOD_LUA_VER}
     - ./configure --with-static=yes --prefix=$HOME && make && make install
     - export PATH=$HOME/bin:$PATH
     # install Lmod
@@ -48,15 +53,17 @@ install:
     - ./configure --prefix=$HOME && make install
 script:
     # set up environment for modules tool
-    - export PATH=$HOME/Modules/3.2.10/bin:$HOME/lmod/$LMOD_VERSION/libexec:$PATH
-    - source $MOD_INIT
+    - export PATH=$HOME/Modules/3.2.10/bin:$HOME/lmod/$LMOD_VERSION/libexec:$PATH; source $MOD_INIT
     # set up environment for EasyBuild framework tests
-    - export PATH=$TRAVIS_BUILD_DIR:$PATH
-    - export PYTHONPATH=$TRAVIS_BUILD_DIR
-    # framework tests can not be run in cloned repository, due to Python packaging weirdness
-    - cd $HOME
+    - export PATH=$TRAVIS_BUILD_DIR:$PATH; export PYTHONPATH=$TRAVIS_BUILD_DIR
     # install GitHub token
     - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
                  keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
-    # TEST!
-    - python -O -m test.framework.suite
+    # run test suite
+    # framework tests can not be run in cloned repository, due to Python packaging weirdness
+    - cd $HOME; python -O -m test.framework.suite; cd -
+    # test bootstrap script
+    - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
+    - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
+    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
