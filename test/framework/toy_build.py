@@ -972,6 +972,7 @@ class ToyBuildTest(EnhancedTestCase):
         lmod_abspath = which('lmod')
         if lmod_abspath is not None:
             args = common_args[:-1] + [
+                '--allow-modules-tool-mismatch',
                 '--module-only',
                 '--module-syntax=Lua',
                 '--modules-tool=Lmod',
