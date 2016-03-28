@@ -22,7 +22,7 @@ addons:
 before_install:
     - pip install vsc-base
     # keyring is required to provide GitHub token to EasyBuild
-    - pip install keyring==5.7.1 keyrings.alt
+    - pip install keyring==5.7.1
     # optional Python packages for EasyBuild
     - pip install autopep8 GC3Pie GitPython PyYAML
 install:
@@ -52,7 +52,7 @@ script:
     - cd $TRAVIS_BUILD_DIR/..
     # install GitHub token
     - mkdir -p $HOME/.local/share/python_keyring
-    - echo "[backend]\ndefault-keyring=keyrings.alt.file.PlaintextKeyring" > $HOME/.local/share/python_keyring/keyringrc.cfg
+    - echo "[backend]\ndefault-keyring=keyring.backends.file.PlaintextKeyring" > $HOME/.local/share/python_keyring/keyringrc.cfg
     - python -c "import keyring; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
     - python -O -m test.framework.suite
