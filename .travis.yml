@@ -65,5 +65,5 @@ script:
     # test bootstrap script
     - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
     - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
-    - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
+    - EASYBUILD_BOOTSTRAP_DEBUG=1 python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
     - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
