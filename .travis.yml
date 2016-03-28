@@ -28,6 +28,9 @@ before_install:
     - pip install keyring==5.7.1
     # optional Python packages for EasyBuild
     - pip install autopep8 GC3Pie GitPython python-graph-dot python-hglib PyYAML
+    # git config is required to make actual git commits
+    - git config --global user.name "Travis CI"
+    - git config --global user.email "travis@travis-ci.org"
 install:
     - easy_install vsc-base
     # install environment modules
