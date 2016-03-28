@@ -23,7 +23,7 @@ before_install:
     # keyring is required to provide GitHub token to EasyBuild
     - pip install keyring==5.7.1
     # optional Python packages for EasyBuild
-    - pip install autopep8 GC3Pie GitPython PyYAML
+    - pip install autopep8 GC3Pie GitPython python-graph python-hglib PyYAML
 install:
     - easy_install vsc-base
     # install environment modules
