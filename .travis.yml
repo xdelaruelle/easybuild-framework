@@ -4,14 +4,14 @@ python:
   - 2.7
 env:
     global:
-        - LMOD_VERSION=5.6.3
         - ENV_MOD_INIT=$HOME/Modules/3.2.10/init/bash
+        - LMOD_VERSION=5.6.3
         - LMOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
     matrix:
         # each of these configurations will be tested, for each Python version
         - MOD_INIT=$ENV_MOD_INIT
-        #- MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
-        #- MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
+        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
+        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
 addons:
   apt:
     packages:
@@ -28,7 +28,7 @@ before_install:
     - pip install keyring==5.7.1
     # optional Python packages for EasyBuild
     - pip install autopep8 GC3Pie GitPython python-graph-dot python-hglib PyYAML
-    # git config is required to make actual git commits
+    # git config is required to make actual git commits (cfr. tests for GitRepository)
     - git config --global user.name "Travis CI"
     - git config --global user.email "travis@travis-ci.org"
 install:
@@ -59,5 +59,4 @@ script:
     - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
                  keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
-    #- python -O -m test.framework.suite
-    - python -O -m test.framework.repository
+    - python -O -m test.framework.suite
