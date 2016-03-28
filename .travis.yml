@@ -43,8 +43,8 @@ script:
     # set up environment for modules tool
     - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/libexec:$PATH
     - source $MOD_INIT
-    - type module
-    - which lmod
+    - ls -l $(which lmod)
+    - lmod python --version
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
