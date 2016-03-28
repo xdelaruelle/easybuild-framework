@@ -38,7 +38,7 @@ install:
     # install Lmod
     - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
     - tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
-    - ./configure --prefix=$TRAVIS_BUILD_DIR && make install
+    - ./configure --prefix=$HOME && make install
 script:
     # set up environment for modules tool
     - export PATH=$HOME/Modules/3.2.10/bin:$HOME/lmod/$LMOD_VERSION/libexec:$PATH
