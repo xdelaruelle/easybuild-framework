@@ -520,6 +520,7 @@ class ModulesTool(object):
 
         full_cmd = ' '.join(cmdlist + args)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
+        print 'run_module: ', full_cmd
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)

@@ -57,4 +57,5 @@ script:
     - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
                  keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
-    - python -O -m test.framework.suite
+    #- python -O -m test.framework.suite
+    - python -O -m test.framework.modulestool
