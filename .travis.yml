@@ -51,8 +51,7 @@ script:
     # framework tests can not be run in cloned repository, due to Python packaging weirdness
     - cd $TRAVIS_BUILD_DIR/..
     # install GitHub token
-    - mkdir -p $HOME/.local/share/python_keyring
-    - echo "[backend]\ndefault-keyring=keyring.backends.file.PlaintextKeyring" > $HOME/.local/share/python_keyring/keyringrc.cfg
-    - python -c "import keyring; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
+    - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
+                 keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
     - python -O -m test.framework.suite
