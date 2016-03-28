@@ -1,7 +1,7 @@
 language: python
 python:
-  - '2.6'
-  - '2.7'
+  - 2.6
+  - 2.7
 env:
     global:
         - LMOD_VERSION=5.6.3
@@ -12,6 +12,10 @@ env:
         - MOD_INIT=$ENV_MOD_INIT
         - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
         - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
+matrix:
+    include:
+        - python: 2.7
+          env: MOD_INIT=$ENV_MOD_INIT
 addons:
   apt:
     packages:
@@ -20,12 +24,11 @@ addons:
       # for EasyBuild
       - python-setuptools
 before_install:
+    - pip install vsc-base
     # keyring is required to provide GitHub token to EasyBuild
-    - pip install keyring
-    - pip install keyrings.alt
+    - pip install keyring keyrings.alt
     # optional Python packages for EasyBuild
-    - pip install autopep8
-    - pip install PyYAML
+    - pip install autopep8 GitPython autopep8
 install:
     # install vsc-base (& vsc-install)
     - easy_install vsc-base
@@ -46,6 +49,8 @@ script:
     # set up environment for modules tool
     - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/libexec:$PATH
     - source $MOD_INIT
+    - type -f module
+    - which lmod
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
