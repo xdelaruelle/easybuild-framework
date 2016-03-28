@@ -52,7 +52,7 @@ script:
     - cd $TRAVIS_BUILD_DIR/..
     # install GitHub token
     - mkdir -p $HOME/.local/share/python_keyring
-    - echo "[backend]\ndefault-keyring=keyring.alt.file.PlaintextKeyring" > $HOME/.local/share/python_keyring/keyringrc.cfg
+    - echo "[backend]\ndefault-keyring=keyrings.alt.file.PlaintextKeyring" > $HOME/.local/share/python_keyring/keyringrc.cfg
     - python -c "import keyring; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
     - python -O -m test.framework.suite
