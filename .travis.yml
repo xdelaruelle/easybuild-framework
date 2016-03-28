@@ -5,8 +5,8 @@ python:
 env:
     global:
         - LMOD_VERSION=5.6.3
-        - ENV_MOD_INIT=$TRAVIS_BUILD_DIR/Modules/3.2.10/init/bash
-        - LMOD_INIT=$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/init/bash
+        - ENV_MOD_INIT=$HOME/Modules/3.2.10/init/bash
+        - LMOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
     matrix:
         # each of these configurations will be tested, for each Python version
         - MOD_INIT=$ENV_MOD_INIT
@@ -29,19 +29,19 @@ install:
     # install environment modules
     - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
-    - ./configure --prefix=$TRAVIS_BUILD_DIR && make && make install
+    - ./configure --prefix=$HOME && make && make install
     # install Lua that includes required Lua packages provided by Lmod
     - wget http://downloads.sourceforge.net/project/lmod/lua-5.1.4.8.tar.gz
     - tar xfz lua-5.1.4.8.tar.gz && cd lua-5.1.4.8
-    - ./configure --with-static=yes --prefix=$TRAVIS_BUILD_DIR && make && make install
-    - export PATH=$TRAVIS_BUILD_DIR/bin:$PATH
+    - ./configure --with-static=yes --prefix=$HOME && make && make install
+    - export PATH=$HOME/bin:$PATH
     # install Lmod
     - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
     - tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
     - ./configure --prefix=$TRAVIS_BUILD_DIR && make install
 script:
     # set up environment for modules tool
-    - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/libexec:$PATH
+    - export PATH=$HOME/Modules/3.2.10/bin:$HOME/lmod/$LMOD_VERSION/libexec:$PATH
     - source $MOD_INIT
     - ls -l $(which lmod)
     - lmod python --version
@@ -52,10 +52,9 @@ script:
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
     # framework tests can not be run in cloned repository, due to Python packaging weirdness
-    - cd $TRAVIS_BUILD_DIR/..
+    - cd $HOME
     # install GitHub token
     - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
                  keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
-    #- python -O -m test.framework.suite
-    - python -O -m test.framework.modulestool
+    - python -O -m test.framework.suite
