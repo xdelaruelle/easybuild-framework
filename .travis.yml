@@ -45,6 +45,9 @@ script:
     - source $MOD_INIT
     - ls -l $(which lmod)
     - lmod python --version
+    - echo $LMOD_CMD
+    - echo $MODULEPATH
+    - echo $MODULEPATH | tr ':' ' ' | xargs ls -l
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
