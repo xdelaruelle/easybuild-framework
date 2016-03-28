@@ -10,12 +10,8 @@ env:
     matrix:
         # each of these configurations will be tested, for each Python version
         - MOD_INIT=$ENV_MOD_INIT
-        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
-        - MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
-matrix:
-    include:
-        - python: 2.7
-          env: MOD_INIT=$ENV_MOD_INIT
+        #- MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
+        #- MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod EASYBUILD_MODULE_SYNTAX=Lua
 addons:
   apt:
     packages:
@@ -26,12 +22,10 @@ addons:
 before_install:
     - pip install vsc-base
     # keyring is required to provide GitHub token to EasyBuild
-    - pip install keyring keyrings.alt
+    - pip install keyring==5.7.1 keyrings.alt
     # optional Python packages for EasyBuild
     - pip install autopep8 GC3Pie GitPython PyYAML
 install:
-    # install vsc-base (& vsc-install)
-    - easy_install vsc-base
     # install environment modules
     - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
@@ -49,7 +43,7 @@ script:
     # set up environment for modules tool
     - export PATH=$TRAVIS_BUILD_DIR/Modules/3.2.10/bin:$TRAVIS_BUILD_DIR/lmod/$LMOD_VERSION/libexec:$PATH
     - source $MOD_INIT
-    - type -f module
+    - type module
     - which lmod
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
@@ -57,6 +51,7 @@ script:
     # framework tests can not be run in cloned repository, due to Python packaging weirdness
     - cd $TRAVIS_BUILD_DIR/..
     # install GitHub token
+    - python -c "import keyring.util.platform_; print(keyring.util.platform_.config_root())"
     - python -c "import getpass, keyring; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
     - python -O -m test.framework.suite
