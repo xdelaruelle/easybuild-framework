@@ -132,6 +132,7 @@ class GitRepository(FileRepository):
                 self.client.add(dest)
             except GitCommandError, err:
                 self.log.warning("adding %s to git failed: %s" % (dest, err))
+                print("adding %s to git failed: %s" % (dest, err))
 
     def commit(self, msg=None):
         """
@@ -149,12 +150,14 @@ class GitRepository(FileRepository):
             self.log.debug("succesfull commit: %s", self.client.log('HEAD^!'))
         except GitCommandError, err:
             self.log.warning("Commit from working copy %s failed, empty commit? (msg: %s): %s", self.wc, msg, err)
+            print("Commit from working copy %s failed, empty commit? (msg: %s): %s" % (self.wc, msg, err))
         try:
             info = self.client.push()
             self.log.debug("push info: %s ", info)
         except GitCommandError, err:
             self.log.warning("Push from working copy %s to remote %s failed (msg: %s): %s",
                              self.wc, self.repo, msg, err)
+            print("Push from working copy %s to remote %s failed (msg: %s): %s" % (self.wc, self.repo, msg, err))
 
     def cleanup(self):
         """

@@ -19,6 +19,8 @@ addons:
       - tcl8.5
       # for EasyBuild
       - python-setuptools
+      # for GitPython
+      - git
       # for GC3Pie (optional dep for EasyBuild)
       - time
 before_install:
@@ -54,4 +56,5 @@ script:
     - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());
                  keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # TEST!
-    - python -O -m test.framework.suite
+    #- python -O -m test.framework.suite
+    - python -O -m test.framework.repository
