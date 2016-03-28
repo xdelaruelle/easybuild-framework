@@ -28,7 +28,7 @@ before_install:
     # keyring is required to provide GitHub token to EasyBuild
     - pip install keyring keyrings.alt
     # optional Python packages for EasyBuild
-    - pip install autopep8 GitPython autopep8
+    - pip install autopep8 GC3Pie GitPython PyYAML
 install:
     # install vsc-base (& vsc-install)
     - easy_install vsc-base
