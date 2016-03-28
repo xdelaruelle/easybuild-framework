@@ -20,12 +20,12 @@ addons:
       # for EasyBuild
       - python-setuptools
 before_install:
-    - pip install vsc-base
     # keyring is required to provide GitHub token to EasyBuild
     - pip install keyring==5.7.1
     # optional Python packages for EasyBuild
     - pip install autopep8 GC3Pie GitPython PyYAML
 install:
+    - easy_install vsc-base
     # install environment modules
     - wget http://prdownloads.sourceforge.net/modules/modules-3.2.10.tar.gz
     - tar xfz modules-3.2.10.tar.gz && cd modules-3.2.10
