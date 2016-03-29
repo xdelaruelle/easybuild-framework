@@ -10,7 +10,7 @@ env:
         - LMOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
     matrix:
         # each of these configurations will be tested, for each Python version
-        - MOD_INIT=$ENV_MOD_INIT
+        - MOD_INIT=$ENV_MOD_INIT LMOD_VERSION=5.6.3
         - LMOD_VERSION=5.6.3 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
         - LMOD_VERSION=5.6.3 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
         - LMOD_VERSION=6.1 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
