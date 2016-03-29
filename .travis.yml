@@ -7,7 +7,6 @@ env:
         - ENV_MOD_VERSION=3.2.10
         - ENV_MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
         - LMOD_LUA_VER=5.1.4.8
-        - LMOD_VERSION=5.6.3
         - LMOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
     matrix:
         # each of these configurations will be tested, for each Python version
