@@ -42,7 +42,7 @@ install:
     - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
-    - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION}; fi
+    - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
 script:
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
