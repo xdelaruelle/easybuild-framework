@@ -5,16 +5,14 @@ python:
 env:
     global:
         - ENV_MOD_VERSION=3.2.10
-        - ENV_MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
         - LMOD_LUA_VER=5.1.4.8
-        - LMOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
     matrix:
         # each of these configurations will be tested, for each Python version
-        - MOD_INIT=$ENV_MOD_INIT LMOD_VERSION=5.6.3
-        - LMOD_VERSION=5.6.3 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
-        - LMOD_VERSION=5.6.3 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
-        - LMOD_VERSION=6.1 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod
-        - LMOD_VERSION=6.1 MOD_INIT=$LMOD_INIT TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
+        - MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash LMOD_VERSION=5.6.3
+        - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+        - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+        - LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+        - LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
 addons:
   apt:
     packages:
@@ -52,7 +50,7 @@ install:
     - ./configure --prefix=$HOME && make install
 script:
     # set up environment for modules tool
-    - export PATH=$HOME/Modules/3.2.10/bin:$HOME/lmod/$LMOD_VERSION/libexec:$PATH; source $MOD_INIT
+    - export PATH=$HOME/Modules/$ENV_MOD_VERSION/bin:$HOME/lmod/$LMOD_VERSION/libexec:$PATH; source $MOD_INIT
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH; export PYTHONPATH=$TRAVIS_BUILD_DIR
     # install GitHub token
