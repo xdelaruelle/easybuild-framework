@@ -3,15 +3,17 @@ matrix:
   include:
     # purposely specifying slowest builds first, to gain time overall
     - python: 2.6
-      env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+      env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
     - python: 2.6
-      env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+      env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
     - python: 2.6
-      env: LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+      env: LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
     - python: 2.6
-      env: ENV_MOD_VERSION=3.2.10 MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
+      env: ENV_MOD_VERSION=3.2.10
     - python: 2.7
-      env: ENV_MOD_VERSION=3.2.10 MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
+      env: ENV_MOD_VERSION=3.2.10
+    - python: 2.6
+      env: ENV_MOD_TCL_VERSION=fb0ca4fb2b173c27efca53fa590a2962dd161669 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
 addons:
   apt:
     packages:
@@ -40,9 +42,10 @@ install:
     - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
+    - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION}; fi
 script:
-    # set up environment for modules tool
-    - source $MOD_INIT
+    # set up environment for modules tool (if $MOD_INIT is defined)
+    - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
