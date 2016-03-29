@@ -6,7 +6,6 @@ matrix:
   include:
     - env: ENV_MOD_VERSION=3.2.10 MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
     - python: 2.7
-      env:
       env: ENV_MOD_VERSION=3.2.10 MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
     - env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
     - env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
@@ -42,7 +41,7 @@ script:
     # set up environment for modules tool
     - source $MOD_INIT
     # set up environment for EasyBuild framework tests
-    - export PATH=$TRAVIS_BUILD_DIR:$PAT
+    - export PATH=$TRAVIS_BUILD_DIR:$PATH
     - export PYTHONPATH=$TRAVIS_BUILD_DIR
     # install GitHub token
     - python -c "import keyring; keyring.set_keyring(keyring.backends.file.PlaintextKeyring());

@@ -14,7 +14,7 @@ PKG_VERSION=`echo $PKG | cut -f2 -d'-'`
 
 if [ x$PKG_NAME == 'xmodules' ]; then
     PKG_URL='http://prdownloads.sourceforge.net/modules/'
-    export PATH=$PREFIX/Modules/$PKG_VERSION/bin:PATH
+    export PATH=$PREFIX/Modules/$PKG_VERSION/bin:$PATH
 
 elif [ x$PKG_NAME == 'xlua' ]; then
     PKG_URL='http://downloads.sourceforge.net/project/lmod/'
