@@ -1,7 +1,5 @@
 language: python
 python: 2.6
-env:
-  global: INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
 matrix:
   include:
     - env: ENV_MOD_VERSION=3.2.10 MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
@@ -34,6 +32,7 @@ install:
     # install vsc-base (& vsc-install) dependencies for EasyBuild
     - easy_install vsc-base
     # install environment modules or Lmod
+    - export INSTALL_DEP=$TRAVIS_BUILD_DIR/easybuild/scripts/install_eb_dep.sh
     - if [ ! -z $ENV_MOD_VERSION ]; then source $INSTALL_DEP modules-${ENV_MOD_VERSION} $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
