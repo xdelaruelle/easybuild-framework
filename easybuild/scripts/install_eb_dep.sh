@@ -9,7 +9,7 @@ fi
 PKG=$1
 PREFIX=$2
 
-PKG_NAME=`echo $PKG | cut -f1 -d'-'`
+PKG_NAME=`echo $PKG | sed 's/-[^-]*$//g'`
 PKG_VERSION=`echo $PKG | sed 's/.*-//g'`
 
 if [ x$PKG_NAME == 'xmodules' ]; then
