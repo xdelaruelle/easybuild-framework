@@ -33,22 +33,22 @@ install:
     - easy_install vsc-base
     # install environment modules
     - if [ ! -z $ENV_MOD_VERSION ]; then
-        wget http://prdownloads.sourceforge.net/modules/modules-${ENV_MOD_VERSION}.tar.gz;
-        tar xfz modules-${ENV_MOD_VERSION}.tar.gz && cd modules-${ENV_MOD_VERSION};
-        ./configure --prefix=$HOME && make && make install;
-        export PATH=$HOME/Modules/$ENV_MOD_VERSION/bin:PATH;
+      wget http://prdownloads.sourceforge.net/modules/modules-${ENV_MOD_VERSION}.tar.gz;
+      tar xfz modules-${ENV_MOD_VERSION}.tar.gz && cd modules-${ENV_MOD_VERSION};
+      ./configure --prefix=$HOME && make && make install;
+      export PATH=$HOME/Modules/$ENV_MOD_VERSION/bin:PATH;
       fi
     - if [ ! -z $LMOD_VERSION ]; then
-        # install Lua that includes required Lua packages (provided by Lmod)
-        wget http://downloads.sourceforge.net/project/lmod/lua-5.1.4.8.tar.gz;
-        tar xfz lua-5.1.4.8.tar.gz && cd lua-5.1.4.8;
-        ./configure --with-static=yes --prefix=$HOME && make && make install;
-        export PATH=$HOME/bin:$PATH;
-        # install Lmod
-        wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz;
-        tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION};
-        ./configure --prefix=$HOME && make install;
-        export PATH=$HOME/lmod/$LMOD_VERSION/libexec:$PATH;
+      # install Lua that includes required Lua packages (provided by Lmod)
+      wget http://downloads.sourceforge.net/project/lmod/lua-5.1.4.8.tar.gz;
+      tar xfz lua-5.1.4.8.tar.gz && cd lua-5.1.4.8;
+      ./configure --with-static=yes --prefix=$HOME && make && make install;
+      export PATH=$HOME/bin:$PATH;
+      # install Lmod
+      wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz;
+      tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION};
+      ./configure --prefix=$HOME && make install;
+      export PATH=$HOME/lmod/$LMOD_VERSION/libexec:$PATH;
       fi
 script:
     # set up environment for modules tool
