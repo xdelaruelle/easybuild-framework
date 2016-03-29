@@ -298,8 +298,11 @@ def stage1(tmpdir, sourcepath):
 
     # install latest EasyBuild with easy_install from PyPi
     cmd = []
-    cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
-    cmd.append('--prefix=%s' % targetdir_stage1)
+    cmd.extend([
+        '--upgrade',  # make sure the latest version is pulled from PyPi
+        '--always-copy',  # copy packages that are already available on the OS (e.g. vsc-base, vsc-install)
+        '--prefix=%s' % targetdir_stage1,
+    ])
 
     post_cmd = []
     if source_tarballs:
