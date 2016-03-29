@@ -1,18 +1,13 @@
 language: python
-python:
-  - 2.6
-  - 2.7
-env:
-    global:
-        - ENV_MOD_VERSION=3.2.10
-        - LMOD_LUA_VER=5.1.4.8
-    matrix:
-        # each of these configurations will be tested, for each Python version
-        - MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash LMOD_VERSION=5.6.3
-        - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
-        - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
-        - LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
-        - LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+python: 2.6
+matrix:
+  include:
+    - env: ENV_MOD_VERSION=3.2.10 MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
+    - python: 2.7
+      env: ENV_MOD_VERSION=3.2.10 MOD_INIT=$HOME/Modules/$ENV_MOD_VERSION/init/bash
+    - env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+    - env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
+    - env: LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua MOD_INIT=$HOME/lmod/$LMOD_VERSION/init/bash
 addons:
   apt:
     packages:
@@ -36,21 +31,27 @@ install:
     # install vsc-base (& vsc-install) dependencies for EasyBuild
     - easy_install vsc-base
     # install environment modules
-    - wget http://prdownloads.sourceforge.net/modules/modules-${ENV_MOD_VERSION}.tar.gz
-    - tar xfz modules-${ENV_MOD_VERSION}.tar.gz && cd modules-${ENV_MOD_VERSION}
-    - ./configure --prefix=$HOME && make && make install
-    # install Lua that includes required Lua packages (provided by Lmod)
-    - wget http://downloads.sourceforge.net/project/lmod/lua-${LMOD_LUA_VER}.tar.gz
-    - tar xfz lua-${LMOD_LUA_VER}.tar.gz && cd lua-${LMOD_LUA_VER}
-    - ./configure --with-static=yes --prefix=$HOME && make && make install
-    - export PATH=$HOME/bin:$PATH
-    # install Lmod
-    - wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz
-    - tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION}
-    - ./configure --prefix=$HOME && make install
+    - if [ ! -z $ENV_MOD_VERSION ]; then
+        wget http://prdownloads.sourceforge.net/modules/modules-${ENV_MOD_VERSION}.tar.gz;
+        tar xfz modules-${ENV_MOD_VERSION}.tar.gz && cd modules-${ENV_MOD_VERSION};
+        ./configure --prefix=$HOME && make && make install;
+        export PATH=$HOME/Modules/$ENV_MOD_VERSION/bin:PATH;
+      fi
+    - if [ ! -z $LMOD_VERSION ]; then
+        # install Lua that includes required Lua packages (provided by Lmod)
+        wget http://downloads.sourceforge.net/project/lmod/lua-5.1.4.8.tar.gz;
+        tar xfz lua-5.1.4.8.tar.gz && cd lua-5.1.4.8;
+        ./configure --with-static=yes --prefix=$HOME && make && make install;
+        export PATH=$HOME/bin:$PATH;
+        # install Lmod
+        wget https://github.com/TACC/Lmod/archive/${LMOD_VERSION}.tar.gz;
+        tar xfz ${LMOD_VERSION}.tar.gz && cd Lmod-${LMOD_VERSION};
+        ./configure --prefix=$HOME && make install;
+        export PATH=$HOME/lmod/$LMOD_VERSION/libexec:$PATH;
+      fi
 script:
     # set up environment for modules tool
-    - export PATH=$HOME/Modules/$ENV_MOD_VERSION/bin:$HOME/lmod/$LMOD_VERSION/libexec:$PATH; source $MOD_INIT
+    - source $MOD_INIT
     # set up environment for EasyBuild framework tests
     - export PATH=$TRAVIS_BUILD_DIR:$PATH; export PYTHONPATH=$TRAVIS_BUILD_DIR
     # install GitHub token
