@@ -28,19 +28,19 @@ elif [ x$PKG_NAME == 'xLmod' ]; then
     export MOD_INIT=$HOME/lmod/$PKG_VERSION/init/bash
 
 elif [ x$PKG_NAME == 'xmodules-tcl' ]; then
-    PKG_URL="https://sourceforge.net/code-snapshots/git/m/mo/modules/modules-tcl.git/modules-${PKG}.zip"
-    export PATH=$PREFIX/modules-${PKG}:$PATH
+    # obtain tarball from upstream via http://modules.cvs.sourceforge.net/viewvc/modules/modules/?view=tar&revision=1.147
+    PKG_URL="http://hpcugent.github.io/easybuild/files/modules-tcl-1.147.tar.gz"
+    export PATH=$PREFIX/${PKG}:$PATH
 else
     echo "ERROR: Unknown package name '$PKG_NAME'"
     exit 2
 fi
 
 echo "Installing ${PKG} @ ${PREFIX}..."
-wget ${PKG_URL}
+mkdir -p ${PREFIX}
+wget ${PKG_URL} && tar xfz *${PKG_VERSION}.tar.gz
 if [ x$PKG_NAME == 'xmodules-tcl' ]; then
-    unzip modules-${PKG}.zip
-    cp -a modules-${PKG} $PREFIX
+    mv modules $PREFIX/${PKG}
 else
-    tar xfz *${PKG_VERSION}.tar.gz && cd ${PKG}
-    ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
+    cd ${PKG} && ./configure $CONFIG_OPTIONS --prefix=$PREFIX && make && make install
 fi
