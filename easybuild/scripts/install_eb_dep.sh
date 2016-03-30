@@ -33,7 +33,6 @@ elif [ x$PKG_NAME == 'xmodules-tcl' ]; then
     export MODULESHOME=$PREFIX/$PKG/tcl  # required by init/bash source script
     export PATH=$MODULESHOME:$PATH
     export MOD_INIT=$MODULESHOME/init/bash.in
-    exp
 else
     echo "ERROR: Unknown package name '$PKG_NAME'"
     exit 2
