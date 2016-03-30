@@ -30,7 +30,7 @@ elif [ x$PKG_NAME == 'xLmod' ]; then
 elif [ x$PKG_NAME == 'xmodules-tcl' ]; then
     # obtain tarball from upstream via http://modules.cvs.sourceforge.net/viewvc/modules/modules/?view=tar&revision=1.147
     PKG_URL="http://hpcugent.github.io/easybuild/files/modules-tcl-${PKG_VERSION}.tar.gz"
-    export PATH=$PREFIX/${PKG}:$PATH
+    export PATH=$PREFIX/${PKG}/tcl:$PATH
 else
     echo "ERROR: Unknown package name '$PKG_NAME'"
     exit 2
