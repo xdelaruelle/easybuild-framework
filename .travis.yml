@@ -1,19 +1,17 @@
 language: python
+python: 2.6
+env:
+    # purposely specifying slowest builds first, to gain time overall
+    - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
+    - LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
+    - ENV_MOD_VERSION=3.2.10
+    - ENV_MOD_TCL_VERSION=fb0ca4fb2b173c27efca53fa590a2962dd161669 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
 matrix:
   include:
-    # purposely specifying slowest builds first, to gain time overall
-    - python: 2.6
-      env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod
-    - python: 2.6
-      env: LMOD_VERSION=5.6.3 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
-    - python: 2.6
-      env: LMOD_VERSION=6.1 TEST_EASYBUILD_MODULES_TOOL=Lmod
-    - python: 2.6
-      env: ENV_MOD_VERSION=3.2.10
+    # also test default configuration with Python 2.7
     - python: 2.7
       env: ENV_MOD_VERSION=3.2.10
-    - python: 2.6
-      env: ENV_MOD_TCL_VERSION=fb0ca4fb2b173c27efca53fa590a2962dd161669 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
 addons:
   apt:
     packages:
