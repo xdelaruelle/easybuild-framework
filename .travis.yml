@@ -55,9 +55,10 @@ script:
                  keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
     # run test suite
     # framework tests can not be run in cloned repository, due to Python packaging weirdness
-    - cd $HOME; python -O -m test.framework.suite; cd -
+    - cd $HOME
+    - python -O -m test.framework.suite
     # test bootstrap script
     - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
     - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID
-    - module use /tmp/$TRAVIS_JOB_ID/modules/all; module load EasyBuild; eb --version
+    - module use /tmp/$TRAVIS_JOB_ID/modules/all; module show EasyBuild; module load EasyBuild; eb --version
