@@ -1766,6 +1766,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_easyblocks(self):
         """Test --include-easyblocks."""
+        orig_local_sys_path = sys.path[:]
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -1787,7 +1789,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
-        sys.path = self.orig_sys_path
+        sys.path = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
@@ -1826,6 +1828,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_include_generic_easyblocks(self):
         """Test --include-easyblocks with a generic easyblock."""
+        orig_local_sys_path = sys.path[:]
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -1864,7 +1867,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foobar easyblock
         del sys.modules['easybuild.easyblocks.generic.foobar']
         os.remove(os.path.join(self.test_prefix, 'generic', 'foobar.py'))
-        sys.path = self.orig_sys_path
+        sys.path = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
@@ -1914,10 +1917,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # TestIncludedMNS module naming scheme is not available by default
         args = [
             '--avail-module-naming-schemes',
-            '--unittest-file=%s' % self.logfile,
         ]
-        self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        logtxt = read_file(self.logfile)
+        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
         self.assertFalse(mns_regex.search(logtxt), "Unexpected pattern '%s' found in: %s" % (mns_regex.pattern, logtxt))
 
         # include extra test MNS
@@ -1934,14 +1935,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--avail-module-naming-schemes',
             '--include-module-naming-schemes=%s/*.py' % self.test_prefix,
-            '--unittest-file=%s' % self.logfile,
         ]
-        self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        logtxt = read_file(self.logfile)
+        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
         self.assertTrue(mns_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (mns_regex.pattern, logtxt))
-
-        # undo successful import
-        del sys.modules['easybuild.tools.module_naming_scheme.test_mns']
 
     def test_use_included_module_naming_scheme(self):
         """Test using an included module naming scheme."""
@@ -1995,10 +1991,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # TestIncludedCompiler is not available by default
         args = [
             '--list-toolchains',
-            '--unittest-file=%s' % self.logfile,
         ]
-        self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        logtxt = read_file(self.logfile)
+        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
         self.assertFalse(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
 
         # include extra test toolchain
@@ -2020,15 +2014,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix),
             '--list-toolchains',
-            '--unittest-file=%s' % self.logfile,
         ]
-        self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        logtxt = read_file(self.logfile)
-        self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' *not* found in: %s" % (tc_regex.pattern, logtxt))
-
-        # undo successful import
-        del sys.modules['easybuild.toolchains.compiler.test_comp']
-        del sys.modules['easybuild.toolchains.test_tc']
+        logtxt, _= run_cmd("cd %s; eb %s" % (self.test_prefix, ' '.join(args)), simple=False)
+        self.assertTrue(tc_regex.search(logtxt), "Pattern '%s' found in: %s" % (tc_regex.pattern, logtxt))
 
     def test_cleanup_tmpdir(self):
         """Test --cleanup-tmpdir."""

@@ -1,11 +1,14 @@
 ##
-# Copyright 2014-2016 Ghent University
+# Copyright 2015 Bart Oldeman
+#
+# This file is triple-licensed under GPLv2 (see below), MIT, and
+# BSD three-clause licenses.
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
-# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
@@ -23,22 +26,18 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-CrayGNU toolchain: GCC and MPI via Cray compiler drivers + LibSci (PrgEnv-gnu) and Cray FFTW
+EasyBuild support for PGI compiler toolchain.
 
-@author: Petar Forai (IMP/IMBA, Austria)
-@author: Kenneth Hoste (Ghent University)
+@author: Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 """
-from easybuild.toolchains.compiler.craype import CrayPEGCC
-from easybuild.toolchains.linalg.libsci import LibSci
-from easybuild.toolchains.mpi.craympich import CrayMPICH
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+
+from easybuild.toolchains.compiler.pgi import Pgi
+from easybuild.toolchains.gcccore import GCCcore
 
 
-class CrayGNU(CrayPEGCC, CrayMPICH, LibSci):
-    """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
-    NAME = 'CrayGNU'
-    SUBTOOLCHAIN = DUMMY_TOOLCHAIN_NAME
-
-    def prepare(self, *args, **kwargs):
-        """Prepare to use this toolchain."""
-        super(CrayGNU, self).prepare(*args, **kwargs)
+class PgiToolchain(Pgi):
+    """Simple toolchain with just the PGI compilers."""
+    NAME = 'PGI'
+    # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
+    # in particular in a hierarchical module naming scheme
+    SUBTOOLCHAIN = GCCcore.NAME
