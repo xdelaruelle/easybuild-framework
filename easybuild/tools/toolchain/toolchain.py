@@ -667,8 +667,9 @@ class Toolchain(object):
             c_comps = ['gcc', 'g++']
             fortran_comps =  ['gfortran']
         else:
-            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
-            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+            c_comps = [self.COMPILER_CC, self.COMPILER_CXX, self.MPI_COMPILER_MPICC, self.MPI_COMPILER_MPICXX]
+            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC,
+                             self.MPI_COMPILER_MPIF77, self.MPI_COMPILER_MPIF90, self.MPI_COMPILER_MPIFC]
 
         if cache_tool == CCACHE:
             # recent versions of ccache (>=3.3) also support caching of Fortran compilations
