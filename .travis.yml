@@ -8,6 +8,7 @@ env:
     - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
     - ENV_MOD_VERSION=3.2.10
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
+    - MYPY=1
 matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
@@ -27,6 +28,8 @@ addons:
       - mercurial
       # for GC3Pie (optional dep for EasyBuild)
       - time
+      # to install mypy
+      - python3 python3-pip
 before_install:
     - pip --version
     - pip install --upgrade pip
@@ -53,6 +56,8 @@ install:
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP lua-5.1.4.8 $HOME; fi
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
     - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
+    # install mypy if desired
+    - if [ ! -z $MYPY ]; then pip3 install mypy-lang
 script:
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
@@ -68,14 +73,15 @@ script:
         python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')";
       fi
     # run test suite
-    - python -O -m test.framework.suite
+    - if [ -z $MYPY ]; then python -O -m test.framework.suite; fi
+    - if [ ! -z $MYPY ]; then mypy --py2 --silent-imports --fast-parser -i easybuild/tools/filetools.py; fi
     # configure EasyBuild before running bootstrap (modules tool/syntax to use)
     - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
     - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
     # move outside of checkout of easybuild-framework repository, weird place to run bootstrap
     - cd $HOME
     # test bootstrap script
-    - EASYBUILD_BOOTSTRAP_DEBUG=1 python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID || echo "bootstrap FAILED"
+    - if [ -z $MYPY ]; then EASYBUILD_BOOTSTRAP_DEBUG=1 python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID || echo "bootstrap FAILED"; fi
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
