@@ -29,7 +29,8 @@ addons:
       # for GC3Pie (optional dep for EasyBuild)
       - time
       # to install mypy
-      - python3 python3-pip
+      - python3
+      - python3-pip
 before_install:
     - pip --version
     - pip install --upgrade pip
