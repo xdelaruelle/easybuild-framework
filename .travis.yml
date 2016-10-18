@@ -56,7 +56,7 @@ install:
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
     - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
     # install mypy if desired
-    - if [ ! -z $MYPY ]; then pip install mypy-lang; fi
+    - if [ ! -z $MYPY ]; then pip install mypy-lang typed-ast; fi
 script:
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
