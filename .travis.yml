@@ -8,7 +8,6 @@ env:
     - LMOD_VERSION=6.3.1 TEST_EASYBUILD_MODULES_TOOL=Lmod TEST_EASYBUILD_MODULE_SYNTAX=Lua
     - ENV_MOD_VERSION=3.2.10
     - ENV_MOD_TCL_VERSION=1.147 TEST_EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
-    - MYPY=1
 matrix:
   # mark build as finished as soon as job has failed
   fast_finish: true
@@ -16,6 +15,8 @@ matrix:
     # also test default configuration with Python 2.7
     - python: 2.7
       env: ENV_MOD_VERSION=3.2.10
+    - python: 3.5
+      env: MYPY=1
 addons:
   apt:
     packages:
@@ -28,9 +29,6 @@ addons:
       - mercurial
       # for GC3Pie (optional dep for EasyBuild)
       - time
-      # for mypy
-      - python3
-      - python3-pip
 before_install:
     - pip --version
     - pip install --upgrade pip
@@ -58,7 +56,7 @@ install:
     - if [ ! -z $LMOD_VERSION ]; then source $INSTALL_DEP Lmod-${LMOD_VERSION} $HOME; fi
     - if [ ! -z $ENV_MOD_TCL_VERSION ]; then source $INSTALL_DEP modules-tcl-${ENV_MOD_TCL_VERSION} $HOME; fi
     # install mypy if desired
-    - if [ ! -z $MYPY ]; then pip3 install mypy-lang; fi
+    - if [ ! -z $MYPY ]; then pip install mypy-lang; fi
 script:
     # set up environment for modules tool (if $MOD_INIT is defined)
     - if [ ! -z $MOD_INIT ]; then source $MOD_INIT; fi
