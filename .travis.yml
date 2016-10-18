@@ -73,7 +73,7 @@ script:
       fi
     # run test suite
     - if [ -z $MYPY ]; then python -O -m test.framework.suite; fi
-    - if [ ! -z $MYPY ]; then mypy --py2 --silent-imports --fast-parser -i easybuild/tools/filetools.py; fi
+    - if [ ! -z $MYPY ]; then mypy --py2 --silent-imports --fast-parser easybuild; fi
     # configure EasyBuild before running bootstrap (modules tool/syntax to use)
     - if [ ! -z $TEST_EASYBUILD_MODULES_TOOL ]; then EASYBUILD_MODULES_TOOL=$TEST_EASYBUILD_MODULES_TOOL; fi
     - if [ ! -z $TEST_EASYBUILD_MODULE_SYNTAX ]; then EASYBUILD_MODULE_SYNTAX=$TEST_EASYBUILD_MODULE_SYNTAX; fi
