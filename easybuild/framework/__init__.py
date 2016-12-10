@@ -32,3 +32,5 @@ which is a collection of additional modules/classes to be used for software comp
 :author: Pieter De Baets (Ghent University)
 :author: Jens Timmerman (Ghent University)
 """
+# name of (sub)package for generic easyblocks
+GENERIC = 'generic'

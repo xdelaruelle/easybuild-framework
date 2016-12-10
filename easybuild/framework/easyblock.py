@@ -51,6 +51,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for
 
 import easybuild.tools.environment as env
+from easybuild.framework import GENERIC
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class

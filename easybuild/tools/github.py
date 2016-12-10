@@ -48,6 +48,7 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
+from easybuild.framework import GENERIC
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, process_easyconfig
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION
 from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION
@@ -84,7 +85,6 @@ except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
 
-GENERIC_EB = 'generic'
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
@@ -101,7 +101,6 @@ GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
 KEYRING_GITHUB_TOKEN = 'github_token'
-PYTHON_EXTENSION = 'py'
 URL_SEPARATOR = '/'
 
 
@@ -868,10 +867,10 @@ def copy_easyblocks(paths, target_dir):
             if cn.startswith(EASYBLOCK_CLASS_PREFIX):
                 # regular eb file
                 letter = fn.lower()[0]
-                target_path = os.path.join(subdir, letter, "%s.%s" % (eb_name, PYTHON_EXTENSION))
+                target_path = os.path.join(subdir, letter, '%s.py' % eb_name)
             else:
                 # generic
-                target_path = os.path.join(subdir, GENERIC_EB, "%s.%s" % (eb_name.lower(), PYTHON_EXTENSION))
+                target_path = os.path.join(subdir, GENERIC, '%s.py' % eb_name.lower())
 
             full_target_path = os.path.join(target_dir, target_path)
             file_info['paths_in_repo'].append(full_target_path)

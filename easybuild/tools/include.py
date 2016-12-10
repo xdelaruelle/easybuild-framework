@@ -32,6 +32,7 @@ import os
 import sys
 from vsc.utils import fancylogger
 
+from easybuild.framework import GENERIC
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import expand_glob_paths, symlink
 # these are imported just to we can reload them later
@@ -147,7 +148,7 @@ def include_easyblocks(tmpdir, paths):
     easyblocks_path = os.path.join(tmpdir, 'included-easyblocks')
 
     set_up_eb_package(easyblocks_path, 'easybuild.easyblocks',
-                      subpkgs=['generic'], pkg_init_body=EASYBLOCKS_PKG_INIT_BODY)
+                      subpkgs=[GENERIC], pkg_init_body=EASYBLOCKS_PKG_INIT_BODY)
 
     easyblocks_dir = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
 
@@ -157,15 +158,15 @@ def include_easyblocks(tmpdir, paths):
 
         # generic easyblocks are expected to be in a directory named 'generic'
         parent_dir = os.path.basename(os.path.dirname(easyblock_module))
-        if parent_dir == 'generic':
-            target_path = os.path.join(easyblocks_dir, 'generic', filename)
+        if parent_dir == GENERIC:
+            target_path = os.path.join(easyblocks_dir, GENERIC, filename)
         else:
             target_path = os.path.join(easyblocks_dir, filename)
 
         symlink(easyblock_module, target_path)
 
-    included_ebs = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', 'generic']]
-    included_generic_ebs = [x for x in os.listdir(os.path.join(easyblocks_dir, 'generic')) if x != '__init__.py']
+    included_ebs = [x for x in os.listdir(easyblocks_dir) if x not in ['__init__.py', GENERIC]]
+    included_generic_ebs = [x for x in os.listdir(os.path.join(easyblocks_dir, GENERIC)) if x != '__init__.py']
     _log.debug("Included generic easyblocks: %s", included_generic_ebs)
     _log.debug("Included software-specific easyblocks: %s", included_ebs)
 
@@ -180,11 +181,11 @@ def include_easyblocks(tmpdir, paths):
     # only prepending to sys.path is not enough due to 'declare_namespace' in easybuild/easyblocks/__init__.py
     new_path = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
     easybuild.easyblocks.__path__.insert(0, new_path)
-    new_path = os.path.join(new_path, 'generic')
+    new_path = os.path.join(new_path, GENERIC)
     easybuild.easyblocks.generic.__path__.insert(0, new_path)
 
     # sanity check: verify that included easyblocks can be imported (from expected location)
-    for subdir, ebs in [('', included_ebs), ('generic', included_generic_ebs)]:
+    for subdir, ebs in [('', included_ebs), (GENERIC, included_generic_ebs)]:
         pkg = '.'.join(['easybuild', 'easyblocks', subdir]).strip('.')
         loc = os.path.join(easyblocks_dir, subdir)
         verify_imports([os.path.splitext(eb)[0] for eb in ebs], pkg, loc)

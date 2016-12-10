@@ -47,6 +47,7 @@ from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
+from easybuild.framework import GENERIC
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
@@ -1165,7 +1166,7 @@ def get_module_path(name, generic=False, decode=True):
 
     modpath = ['easybuild', 'easyblocks']
     if generic:
-        modpath.append('generic')
+        modpath.append(GENERIC)
 
     return '.'.join(modpath + [module_name])
 
