@@ -55,11 +55,11 @@ PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
 
-DEFAULT_JOB_BACKEND = 'PbsPython'
+DEFAULT_JOB_BACKEND = 'GC3Pie'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
-DEFAULT_MODULE_SYNTAX = 'Tcl'
-DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
+DEFAULT_MODULE_SYNTAX = 'Lua'
+DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
@@ -95,6 +95,7 @@ BUILD_OPTIONS_CMDLINE = {
         'easyblock',
         'extra_modules',
         'filter_deps',
+        'filter_env_vars',
         'hide_deps',
         'hide_toolchains',
         'from_pr',
@@ -104,6 +105,7 @@ BUILD_OPTIONS_CMDLINE = {
         'pr_target_branch',
         'pr_target_repo',
         'github_user',
+        'github_org',
         'group',
         'ignore_dirs',
         'job_backend_config',
@@ -114,9 +116,11 @@ BUILD_OPTIONS_CMDLINE = {
         'job_target_resource',
         'modules_footer',
         'modules_header',
+        'mpi_cmd_template',
         'only_blocks',
         'optarch',
         'parallel',
+        'rpath_filter',
         'regtest_output_dir',
         'skip',
         'stop',
@@ -129,7 +133,9 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_dummy_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'consider_archived_easyconfigs',
         'debug',
+        'debug_lmod',
         'dump_autopep8',
         'extended_dry_run',
         'experimental',
@@ -144,19 +150,22 @@ BUILD_OPTIONS_CMDLINE = {
         'read_only_installdir',
         'rebuild',
         'robot',
+        'rpath',
         'sequential',
         'set_gid_bit',
         'skip_test_cases',
         'sticky_bit',
         'upload_test_report',
         'update_modules_tool_cache',
-        'use_compiler_cache',
+        'use_ccache',
+        'use_f90cache',
         'use_existing_modules',
     ],
     True: [
         'cleanup_builddir',
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
+        'mpi_tests',
     ],
     'warn': [
         'strict',
@@ -320,6 +329,10 @@ def init_build_options(build_options=None, cmdline_options=None):
         if cmdline_options.dep_graph:
             _log.info("Enabling force to generate dependency graph.")
             cmdline_options.force = True
+            retain_all_deps = True
+
+        if cmdline_options.new_pr or cmdline_options.update_pr:
+            _log.info("Retaining all dependencies of specified easyconfigs to create/update pull request")
             retain_all_deps = True
 
         auto_ignore_osdeps_options = [cmdline_options.check_conflicts, cmdline_options.dep_graph,
@@ -548,7 +561,7 @@ def find_last_log(curlog):
     Find location to last log file that is still available.
 
     :param curlog: location to log file of current session
-    @return: path to last log file (or None if no log files were found)
+    :return: path to last log file (or None if no log files were found)
     """
     variables = ConfigurationVariables()
     log_dir = get_build_log_path()

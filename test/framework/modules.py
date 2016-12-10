@@ -35,6 +35,7 @@ import re
 import tempfile
 import shutil
 import sys
+from distutils.version import StrictVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -103,7 +104,15 @@ class ModulesTest(EnhancedTestCase):
 
         # all test modules are accounted for
         ms = self.modtool.available()
-        self.assertEqual(len(ms), TEST_MODULES_COUNT)
+
+        if isinstance(self.modtool, Lmod) and StrictVersion(self.modtool.version) >= StrictVersion('5.7.5'):
+            # with recent versions of Lmod, also the hidden modules are included in the output of 'avail'
+            self.assertEqual(len(ms), TEST_MODULES_COUNT + 3)
+            self.assertTrue('bzip2/.1.0.6' in ms)
+            self.assertTrue('toy/.0.0-deps' in ms)
+            self.assertTrue('OpenMPI/.1.6.4-GCC-4.6.4' in ms)
+        else:
+            self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
     def test_exists(self):
         """Test if testing for module existence works."""
@@ -329,8 +338,11 @@ class ModulesTest(EnhancedTestCase):
     def test_path_to_top_of_module_tree_lua(self):
         """Test path_to_top_of_module_tree function on modules in Lua syntax."""
         if isinstance(self.modtool, Lmod):
+            orig_modulepath = os.environ.get('MODULEPATH')
             self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
-            self.assertEqual(os.environ.get('MODULEPATH'), None)
+            curr_modulepath = os.environ.get('MODULEPATH')
+            error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
+            self.assertEqual(curr_modulepath, None, error_msg)
 
             top_moddir = os.path.join(self.test_prefix, 'test_modules')
             core_dir = os.path.join(top_moddir, 'Core')
@@ -502,7 +514,7 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod):
             # GCC/4.6.3 is nowhere to be found (in $MODULEPATH)
-            load_err_msg = r"The following module\(s\) are unknown"
+            load_err_msg = r"The[\s\n]*following[\s\n]*module\(s\)[\s\n]*are[\s\n]*unknown"
         else:
             load_err_msg = "Unable to locate a modulefile"
 
@@ -535,7 +547,10 @@ class ModulesTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod):
             # OpenMPI/1.6.4 exists, but is not available for load;
             # exact error message depends on Lmod version
-            load_err_msg = r"These module\(s\) exist but cannot be|The following module\(s\) are unknown"
+            load_err_msg = '|'.join([
+                r'These[\s\sn]*module\(s\)[\s\sn]*exist[\s\sn]*but[\s\sn]*cannot[\s\sn]*be',
+                'The[\s\sn]*following[\s\sn]*module\(s\)[\s\sn]*are[\s\sn]*unknown',
+            ])
         else:
             load_err_msg = "Unable to locate a modulefile"
 

@@ -45,7 +45,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar
 from easybuild.tools.filetools import convert_name, mkdir, path_matches, read_file, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -223,7 +223,7 @@ class ModulesTool(object):
 
                 # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
                 # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-                self.version = self.version.replace('rc', 'b')
+                self.version = self.version.replace('rc', 'b').replace('-beta', 'b1')
                 if len(self.version.split('.')) > 3:
                     self.version = '.'.join(self.version.split('.')[:3])
 
@@ -249,11 +249,14 @@ class ModulesTool(object):
         """Check whether modules tool command is available."""
         cmd_path = which(self.cmd)
         if cmd_path is not None:
-            self.cmd = os.path.realpath(cmd_path)
+            self.cmd = cmd_path
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__
-            raise EasyBuildError("%s modules tool can not be used, '%s' command is not available.", mod_tool, self.cmd)
+            mod_tools = avail_modules_tools().keys()
+            error_msg = "%s modules tool can not be used, '%s' command is not available" % (mod_tool, self.cmd)
+            error_msg += "; use --modules-tool to specify a different modules tool to use (%s)" % ', '.join(mod_tools)
+            raise EasyBuildError(error_msg)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -573,24 +576,52 @@ class ModulesTool(object):
 
     def set_path_env_var(self, key, paths):
         """Set path environment variable to the given list of paths."""
-        os.environ[key] = os.pathsep.join(paths)
+        setvar(key, os.pathsep.join(paths), verbose=False)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
         self.log.debug("No checking of module output implemented for %s", self.__class__.__name__)
 
+    def compose_cmd_list(self, args, opts=None):
+        """
+        Compose full module command to run, based on provided arguments
+
+        :param args: list of arguments for module command
+        :return: list of strings representing the full module command to run
+        """
+        if opts is None:
+            opts = []
+
+        cmdlist = [self.cmd, 'python']
+
+        if args[0] in ('available', 'avail', 'list',):
+            # run these in terse mode for easier machine reading
+            opts.append(self.TERSE_OPTION)
+
+        # inject options at specified location
+        for idx, opt in opts:
+            args.insert(idx, opt)
+
+        # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
+        if self.COMMAND_SHELL is not None:
+            if not isinstance(self.COMMAND_SHELL, (list, tuple)):
+                raise EasyBuildError("COMMAND_SHELL needs to be list or tuple, now %s (value %s)",
+                                     type(self.COMMAND_SHELL), self.COMMAND_SHELL)
+            cmdlist = self.COMMAND_SHELL + cmdlist
+
+        return cmdlist + args
+
     def run_module(self, *args, **kwargs):
         """
         Run module command.
+
+        :param args: list of arguments for module command; first argument should be the subcommand to run
+        :param kwargs: dictionary with options that control certain aspects of how to run the module command
         """
         if isinstance(args[0], (list, tuple,)):
             args = args[0]
         else:
             args = list(args)
-
-        if args[0] in ('available', 'avail', 'list',):
-            # run these in terse mode for easier machine reading
-            args.insert(*self.TERSE_OPTION)
 
         module_path_key = None
         if 'mod_paths' in kwargs:
@@ -609,18 +640,11 @@ class ModulesTool(object):
             self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                            key, os.environ.get(key, ''), environ[key])
 
-        # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
-        cmdlist = [self.cmd, 'python']
-        if self.COMMAND_SHELL is not None:
-            if not isinstance(self.COMMAND_SHELL, (list, tuple)):
-                raise EasyBuildError("COMMAND_SHELL needs to be list or tuple, now %s (value %s)",
-                                     type(self.COMMAND_SHELL), self.COMMAND_SHELL)
-            cmdlist = self.COMMAND_SHELL + cmdlist
-
-        full_cmd = ' '.join(cmdlist + args)
+        cmd_list = self.compose_cmd_list(args)
+        full_cmd = ' '.join(cmd_list)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
-        proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
+        proc = subprocess.Popen(cmd_list, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
@@ -704,7 +728,7 @@ class ModulesTool(object):
         Modules with an empty list of $MODULEPATH extensions are included in the result.
 
         :param mod_names: list of module names for which to determine the list of $MODULEPATH extensions
-        @return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
+        :return: dictionary with module names as keys and lists of $MODULEPATH extensions as values
         """
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
 
@@ -855,7 +879,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         """Set environment variable with given name to the given list of paths."""
         super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
         # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
-        os.environ['%s_modshare' % key] = ':1:'.join(paths)
+        setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
     def run_module(self, *args, **kwargs):
         """
@@ -915,20 +939,20 @@ class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-    # required and optimal version
-    # we need at least Lmod v5.6.3 (and it can't be a release candidate)
-    REQ_VERSION = '5.6.3'
+    REQ_VERSION = '5.8'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
+
+    SHOW_HIDDEN_OPTION = '--show-hidden'
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
-        os.environ['LMOD_QUIET'] = '1'
+        setvar('LMOD_QUIET', '1', verbose=False)
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
-        os.environ['LMOD_IGNORE_CACHE'] = '1'
+        setvar('LMOD_IGNORE_CACHE', '1', verbose=False)
         # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
-        os.environ['LMOD_REDIRECT'] = 'no'
+        setvar('LMOD_REDIRECT', 'no', verbose=False)
 
         super(Lmod, self).__init__(*args, **kwargs)
 
@@ -945,6 +969,27 @@ class Lmod(ModulesTool):
         else:
             raise EasyBuildError("Found empty stdout, seems like '%s' failed: %s", cmd, stderr)
 
+    def compose_cmd_list(self, args, opts=None):
+        """
+        Compose full module command to run, based on provided arguments
+
+        :param args: list of arguments for module command
+        :return: list of strings representing the full module command to run
+        """
+        if opts is None:
+            opts = []
+
+        if build_option('debug_lmod'):
+            opts.append((0, '-D'))
+
+        # if --show_hidden is in list of arguments, pass it via 'opts' to make sure it's in the right place,
+        # i.e. *before* the subcommand
+        if self.SHOW_HIDDEN_OPTION in args:
+            opts.append((0, self.SHOW_HIDDEN_OPTION))
+            args = [a for a in args if a != self.SHOW_HIDDEN_OPTION]
+
+        return super(Lmod, self).compose_cmd_list(args, opts=opts)
+
     def available(self, mod_name=None):
         """
         Return a list of available modules for the given (partial) module name;
@@ -952,10 +997,8 @@ class Lmod(ModulesTool):
 
         :param name: a (partial) module name for filtering (default: None)
         """
-        extra_args = []
-        if StrictVersion(self.version) >= StrictVersion('5.7.5'):
-            # make hidden modules visible for recent version of Lmod
-            extra_args = ['--show_hidden']
+        # make hidden modules visible (requires Lmod 5.7.5)
+        extra_args = [self.SHOW_HIDDEN_OPTION]
 
         mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
 
@@ -1061,7 +1104,7 @@ def get_software_libdir(name, only_one=True, fs=None):
     Returns the library subdirectory, relative to software root.
     It fails if multiple library subdirs are found, unless only_one is False which yields a list of all library subdirs.
 
-    @param: name of the software package
+    :param name: name of the software package
     :param only_one: indicates whether only one lib path is expected to be found
     :param fs: only retain library subdirs that contain one of the files in this list
     """

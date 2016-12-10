@@ -46,12 +46,13 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, get_easyblock_class, process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import create_paths, get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, which, write_file
+from easybuild.tools.filetools import find_easyconfigs, is_patch_file, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -114,9 +115,12 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
 
     ec_mod_names = [ec['full_mod_name'] for ec in easyconfigs]
     for easyconfig in easyconfigs:
-        new_ec = easyconfig.copy()
+        if isinstance(easyconfig, EasyConfig):
+            easyconfig._config = copy.copy(easyconfig._config)
+        else:
+            easyconfig = easyconfig.copy()
         deps = []
-        for dep in new_ec['dependencies']:
+        for dep in easyconfig['dependencies']:
             dep_mod_name = dep.get('full_mod_name', ActiveMNS().det_full_module_name(dep))
 
             # treat external modules as resolved when retain_all_deps is enabled (e.g., under --dry-run),
@@ -143,19 +147,19 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
                 deps.append(dep)
 
         # update list of dependencies with only those unresolved
-        new_ec['dependencies'] = deps
+        easyconfig['dependencies'] = deps
 
         # if all dependencies have been resolved, add module for this easyconfig in the list of available modules
-        if not new_ec['dependencies']:
-            _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
-            ordered_ecs.append(new_ec)
+        if not easyconfig['dependencies']:
+            _log.debug("Adding easyconfig %s to final list" % easyconfig['spec'])
+            ordered_ecs.append(easyconfig)
             mod_name = easyconfig['full_mod_name']
             avail_modules.append(mod_name)
             # remove module name from list, so dependencies can be marked as resolved
             ec_mod_names.remove(mod_name)
 
         else:
-            new_easyconfigs.append(new_ec)
+            new_easyconfigs.append(easyconfig)
 
     return ordered_ecs, new_easyconfigs, avail_modules
 
@@ -187,7 +191,7 @@ def dep_graph(filename, specs):
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
         all_nodes.add(spec['module'])
-        spec['ec'].all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
+        spec['ec']._all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
         all_nodes.update(spec['ec'].all_dependencies)
 
         # Get the build dependencies for each spec so we can distinguish them later
@@ -289,7 +293,7 @@ def det_easyconfig_paths(orig_paths):
     """
     Determine paths to easyconfig files.
     :param orig_paths: list of original easyconfig paths
-    @return: list of paths to easyconfig files
+    :return: list of paths to easyconfig files
     """
     from_pr = build_option('from_pr')
     robot_path = build_option('robot_path')
@@ -340,6 +344,10 @@ def det_easyconfig_paths(orig_paths):
                 # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
                 dirnames[:] = [d for d in dirnames if d not in build_option('ignore_dirs')]
 
+                # ignore archived easyconfigs, unless specified otherwise
+                if not build_option('consider_archived_easyconfigs'):
+                    dirnames[:] = [d for d in dirnames if d != EASYCONFIGS_ARCHIVE_DIR]
+
             # stop os.walk insanity as soon as we have all we need (outer loop)
             if not ecs_to_find:
                 break
@@ -350,7 +358,7 @@ def det_easyconfig_paths(orig_paths):
 def parse_easyconfigs(paths, validate=True):
     """
     Parse easyconfig files
-    @params paths: paths to easyconfigs
+    :param paths: paths to easyconfigs
     """
     easyconfigs = []
     generated_ecs = False
@@ -546,3 +554,26 @@ def dump_env_script(easyconfigs):
         print_msg("Script to set up build environment for %s dumped to %s" % (ecfile, script_path), prefix=False)
 
         restore_env(orig_env)
+
+
+def categorize_files_by_type(paths):
+    """
+    Splits list of filepaths into a 3 separate lists: easyconfigs, files to delete and patch files
+    """
+    res = {
+        'easyconfigs': [],
+        'files_to_delete': [],
+        'patch_files': [],
+    }
+
+    for path in paths:
+        if path.startswith(':'):
+            res['files_to_delete'].append(path[1:])
+        # file must exist in order to check whether it's a patch file
+        elif os.path.isfile(path) and is_patch_file(path):
+            res['patch_files'].append(path)
+        else:
+            # anything else is considered to be an easyconfig file
+            res['easyconfigs'].append(path)
+
+    return res

@@ -31,6 +31,7 @@ Unit tests for filetools.py
 @author: Ward Poelmans (Ghent University)
 """
 import os
+import re
 import shutil
 import stat
 import sys
@@ -65,7 +66,8 @@ class FileToolsTest(EnhancedTestCase):
             ('test.TAR.GZ', "tar xzf test.TAR.GZ"),
             ('test.tgz', "tar xzf test.tgz"),
             ('test.gtgz', "tar xzf test.gtgz"),
-            ('test.bz2', "bunzip2 test.bz2"),
+            ('test.bz2', "bunzip2 -c test.bz2 > test"),
+            ('/some/path/test.bz2', "bunzip2 -c /some/path/test.bz2 > test"),
             ('test.tbz', "tar xjf test.tbz"),
             ('test.tbz2', "tar xjf test.tbz2"),
             ('test.tb2', "tar xjf test.tb2"),
@@ -147,6 +149,30 @@ class FileToolsTest(EnhancedTestCase):
         path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
         self.assertTrue(path is None)
 
+        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
+        # put a directory 'foo' in place (should be ignored by 'which')
+        foo = os.path.join(self.test_prefix, 'foo')
+        ft.mkdir(foo)
+        ft.adjust_permissions(foo, stat.S_IRUSR|stat.S_IXUSR)
+        # put executable file 'bar' in place
+        bar = os.path.join(self.test_prefix, 'bar')
+        ft.write_file(bar, '#!/bin/bash')
+        ft.adjust_permissions(bar, stat.S_IRUSR|stat.S_IXUSR)
+        self.assertEqual(ft.which('foo'), None)
+        self.assertTrue(os.path.samefile(ft.which('bar'), bar))
+
+        # add another location to 'bar', which should only return the first location by default
+        barbis = os.path.join(self.test_prefix, 'more', 'bar')
+        ft.write_file(barbis, '#!/bin/bash')
+        ft.adjust_permissions(barbis, stat.S_IRUSR|stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.environ['PATH'], os.path.dirname(barbis))
+        self.assertTrue(os.path.samefile(ft.which('bar'), bar))
+
+        # test getting *all* locations to specified command
+        res = ft.which('bar', retain_all=True)
+        self.assertEqual(len(res), 2)
+        self.assertTrue(os.path.samefile(res[0], bar))
+        self.assertTrue(os.path.samefile(res[1], barbis))
 
     def test_checksums(self):
         """Test checksum functionality."""
@@ -230,9 +256,32 @@ class FileToolsTest(EnhancedTestCase):
         except urllib2.URLError:
             print "Skipping timeout test in test_download_file (working offline)"
 
+        # also test behaviour of download_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        target_location = os.path.join(self.test_prefix, 'foo')
+        if os.path.exists(target_location):
+            shutil.rmtree(target_location)
+
+        self.mock_stdout(True)
+        path = ft.download_file(fn, source_url, target_location)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertEqual(path, target_location)
+        self.assertFalse(os.path.exists(target_location))
+        self.assertTrue(re.match("^file written: .*/foo$", txt))
+
+        ft.download_file(fn, source_url, target_location, forced=True)
+        self.assertTrue(os.path.exists(target_location))
+        self.assertTrue(os.path.samefile(path, target_location))
+
     def test_mkdir(self):
         """Test mkdir function."""
-        tmpdir = tempfile.mkdtemp()
 
         def check_mkdir(path, error=None, **kwargs):
             """Create specified directory with mkdir, and check for correctness."""
@@ -242,8 +291,8 @@ class FileToolsTest(EnhancedTestCase):
             else:
                 self.assertErrorRegex(EasyBuildError, error, ft.mkdir, path, **kwargs)
 
-        foodir = os.path.join(tmpdir, 'foo')
-        barfoodir = os.path.join(tmpdir, 'bar', 'foo')
+        foodir = os.path.join(self.test_prefix, 'foo')
+        barfoodir = os.path.join(self.test_prefix, 'bar', 'foo')
         check_mkdir(foodir)
         # no error on existing paths
         check_mkdir(foodir)
@@ -277,18 +326,16 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
         self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
 
-        shutil.rmtree(tmpdir)
-
     def test_path_matches(self):
+        """Test path_matches function."""
         # set up temporary directories
-        tmpdir = tempfile.mkdtemp()
-        path1 = os.path.join(tmpdir, 'path1')
+        path1 = os.path.join(self.test_prefix, 'path1')
         ft.mkdir(path1)
-        path2 = os.path.join(tmpdir, 'path2')
+        path2 = os.path.join(self.test_prefix, 'path2')
         ft.mkdir(path1)
-        symlink = os.path.join(tmpdir, 'symlink')
+        symlink = os.path.join(self.test_prefix, 'symlink')
         os.symlink(path1, symlink)
-        missing = os.path.join(tmpdir, 'missing')
+        missing = os.path.join(self.test_prefix, 'missing')
 
         self.assertFalse(ft.path_matches(missing, [path1, path2]))
         self.assertFalse(ft.path_matches(path1, [missing]))
@@ -296,14 +343,10 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(ft.path_matches(path2, [missing, symlink]))
         self.assertTrue(ft.path_matches(path1, [missing, symlink]))
 
-        # cleanup
-        shutil.rmtree(tmpdir)
-
     def test_read_write_file(self):
         """Test reading/writing files."""
-        tmpdir = tempfile.mkdtemp()
 
-        fp = os.path.join(tmpdir, 'test.txt')
+        fp = os.path.join(self.test_prefix, 'test.txt')
         txt = "test123"
         ft.write_file(fp, txt)
         self.assertEqual(ft.read_file(fp), txt)
@@ -312,7 +355,26 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp, txt2, append=True)
         self.assertEqual(ft.read_file(fp), txt+txt2)
 
-        shutil.rmtree(tmpdir)
+        # also test behaviour of write_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        foo = os.path.join(self.test_prefix, 'foo.txt')
+
+        self.mock_stdout(True)
+        ft.write_file(foo, 'bar')
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(foo))
+        self.assertTrue(re.match("^file written: .*/foo.txt$", txt))
+
+        ft.write_file(foo, 'bar', forced=True)
+        self.assertTrue(os.path.exists(foo))
+        self.assertEqual(ft.read_file(foo), 'bar')
 
     def test_det_patched_files(self):
         """Test det_patched_files function."""
@@ -368,14 +430,15 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_multidiff(self):
         """Test multidiff function."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         other_toy_ecs = [
-            os.path.join(test_easyconfigs, 'toy-0.0-deps.eb'),
-            os.path.join(test_easyconfigs, 'toy-0.0-gompi-1.3.12-test.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb'),
+            os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-1.3.12-test.eb'),
         ]
 
         # default (colored)
-        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs).split('\n')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+        lines = multidiff(toy_ec, other_toy_ecs).split('\n')
         expected = "Comparing \x1b[0;35mtoy-0.0.eb\x1b[0m with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb"
 
         red = "\x1b[0;41m"
@@ -386,8 +449,8 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertEqual(lines[2], "3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-gompi-1.3.12-test.eb" % (red, endcol))
-        self.assertEqual(lines[3], "3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-deps.eb" % (red, endcol))
+        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (removed chars in toolchain name/version, in red)
         expected = "7 %(endcol)s-%(endcol)s toolchain = {"
@@ -403,32 +466,34 @@ class FileToolsTest(EnhancedTestCase):
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "28 %s+ postinstallcmds = " % green
         self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("29 %s+%s (1/2) toy-0.0-deps.eb" % (green, endcol) in lines)
+        expected = "29 %s+%s (1/2) toy-0.0" % (green, endcol)
+        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
-        lines = multidiff(os.path.join(test_easyconfigs, 'toy-0.0.eb'), other_toy_ecs, colored=False).split('\n')
+        lines = multidiff(toy_ec, other_toy_ecs, colored=False).split('\n')
         self.assertEqual(lines[0], "Comparing toy-0.0.eb with toy-0.0-deps.eb, toy-0.0-gompi-1.3.12-test.eb")
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertEqual(lines[2], "3 - versionsuffix = '-test' (1/2) toy-0.0-gompi-1.3.12-test.eb")
-        self.assertEqual(lines[3], "3 - versionsuffix = '-deps' (1/2) toy-0.0-deps.eb")
+        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
+        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line with squigly line underneath to mark removed chars
         expected = "7 - toolchain = {'name': 'gompi', 'version': '1.3.12'} (1/2) toy"
         self.assertTrue(lines[7].startswith(expected))
-        expected = "  ?                       ^^ ^^               ^^^^^^"
-        self.assertEqual(lines[8], expected)
+        expected = "  ?                       ^^ ^^ "
+        self.assertTrue(lines[8].startswith(expected))
         # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line with squigly line underneath to mark added chars
         expected = "7 + toolchain = {'name': 'dummy', 'version': 'dummy'} (1/2) toy"
         self.assertTrue(lines[9].startswith(expected))
-        expected = "  ?                       ^^ ^^               ^^^^^"
-        self.assertEqual(lines[10], expected)
+        expected = "  ?                       ^^ ^^ "
+        self.assertTrue(lines[10].startswith(expected))
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "28 + postinstallcmds = "
-        self.assertTrue(any([line.startswith(expected) for line in lines]))
-        self.assertTrue("29 + (1/2) toy-0.0-deps.eb" in lines)
+        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
+        expected = "29 + (1/2) toy-0.0-"
+        self.assertTrue(any(l.startswith(expected) for l in lines), "Found '%s' in: %s" % (expected, lines))
 
         self.assertEqual(lines[-1], "=====")
 
@@ -476,6 +541,10 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(new_home, 'test.txt'), 'test')
         os.environ['HOME'] = new_home
         self.assertEqual(ft.expand_glob_paths(['~/*.txt']), [os.path.join(new_home, 'test.txt')])
+
+        # check behaviour if glob that has no (file) matches is passed
+        glob_pat = os.path.join(self.test_prefix, 'test_*')
+        self.assertErrorRegex(EasyBuildError, "No files found using glob pattern", ft.expand_glob_paths, [glob_pat])
 
     def test_adjust_permissions(self):
         """Test adjust_permissions"""
@@ -675,7 +744,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_is_patch_file(self):
         """Test for is_patch_file() function."""
         testdir = os.path.dirname(os.path.abspath(__file__))
-        self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')))
+        self.assertFalse(ft.is_patch_file(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')))
         self.assertTrue(ft.is_patch_file(os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')))
 
     def test_is_alt_pypi_url(self):
@@ -719,11 +788,150 @@ class FileToolsTest(EnhancedTestCase):
         """ Test copy_file """
         testdir = os.path.dirname(os.path.abspath(__file__))
         tmpdir = self.test_prefix
-        to_copy = os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb')
-        target_path = os.path.join(tmpdir, 'toy-0.0.eb')
+        to_copy = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        target_path = os.path.join(tmpdir, 'toy.eb')
         ft.copy_file(to_copy, target_path)
         self.assertTrue(os.path.exists(target_path))
         self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+
+        # also test behaviour of copy_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        # remove target file, it shouldn't get copied under dry run
+        os.remove(target_path)
+
+        self.mock_stdout(True)
+        ft.copy_file(to_copy, target_path)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertFalse(os.path.exists(target_path))
+        self.assertTrue(re.search("^copied file .*/toy-0.0.eb to .*/toy.eb", txt))
+
+        # forced copy, even in dry run mode
+        self.mock_stdout(True)
+        ft.copy_file(to_copy, target_path, force_in_dry_run=True)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.exists(target_path))
+        self.assertTrue(ft.read_file(to_copy) == ft.read_file(target_path))
+        self.assertEqual(txt, '')
+
+    def test_extract_file(self):
+        """Test extract_file"""
+        testdir = os.path.dirname(os.path.abspath(__file__))
+        toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        path = ft.extract_file(toy_tarball, self.test_prefix)
+        self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+
+        toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
+        shutil.copyfile(toy_tarball, toy_tarball_renamed)
+
+        path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s")
+        self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+
+        # also test behaviour of extract_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        path = ft.extract_file(toy_tarball, self.test_prefix)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+        self.assertFalse(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0')))
+        self.assertTrue(re.search('running command "tar xzf .*/toy-0.0.tar.gz"', txt))
+
+        path = ft.extract_file(toy_tarball, self.test_prefix, forced=True)
+        self.assertTrue(os.path.exists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source')))
+        self.assertTrue(os.path.samefile(path, self.test_prefix))
+
+    def test_remove_file(self):
+        """Test remove_file"""
+        testfile = os.path.join(self.test_prefix, 'foo')
+        ft.write_file(testfile, 'bar')
+
+        self.assertTrue(os.path.exists(testfile))
+        ft.remove_file(testfile)
+
+        ft.write_file(testfile, 'bar')
+        ft.adjust_permissions(self.test_prefix, stat.S_IWUSR|stat.S_IWGRP|stat.S_IWOTH, add=False)
+        self.assertErrorRegex(EasyBuildError, "Failed to remove", ft.remove_file, testfile)
+
+        # also test behaviour of remove_file under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+        self.mock_stdout(True)
+        ft.remove_file(testfile)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile("^file [^ ]* removed$")
+        self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+
+    def test_search_file(self):
+        """Test search_file function."""
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        # check for default semantics, test case-insensitivity
+        var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(len(hits), 2)
+        self.assertTrue(all(os.path.exists(p) for p in hits))
+        self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.6.4.eb'))
+        self.assertTrue(hits[1].endswith('/hwloc-1.6.2-GCC-4.7.2.eb'))
+
+        # check filename-only mode
+        var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, filename_only=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+
+        # check specifying of ignored dirs
+        var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, ignore_dirs=['hwloc'])
+        self.assertEqual(var_defs + hits, [])
+
+        # check short mode
+        var_defs, hits = ft.search_file([test_ecs], 'HWLOC', silent=True, short=True)
+        self.assertEqual(var_defs, [('CFGS1', os.path.join(test_ecs, 'h', 'hwloc'))])
+        self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.6.4.eb', '$CFGS1/hwloc-1.6.2-GCC-4.7.2.eb'])
+
+        # check terse mode (implies 'silent', overrides 'short')
+        var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, short=True)
+        self.assertEqual(var_defs, [])
+        expected = [
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.6.4.eb'),
+            os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.7.2.eb'),
+        ]
+        self.assertEqual(hits, expected)
+
+        # check combo of terse and filename-only
+        var_defs, hits = ft.search_file([test_ecs], 'HWLOC', terse=True, filename_only=True)
+        self.assertEqual(var_defs, [])
+        self.assertEqual(hits, ['hwloc-1.6.2-GCC-4.6.4.eb', 'hwloc-1.6.2-GCC-4.7.2.eb'])
+
+    def test_find_eb_script(self):
+        """Test find_eb_script function."""
+        self.assertTrue(os.path.exists(ft.find_eb_script('rpath_args.py')))
+        self.assertTrue(os.path.exists(ft.find_eb_script('rpath_wrapper_template.sh.in')))
+        self.assertErrorRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
 
 
 def suite():

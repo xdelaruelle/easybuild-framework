@@ -32,16 +32,21 @@ Creating a new toolchain should be as simple as possible.
 """
 import copy
 import os
+import stat
+import sys
 import tempfile
 from vsc.utils import fancylogger
+from vsc.utils.missing import nub
 
+import easybuild.tools.toolchain
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import which
+from easybuild.tools.filetools import adjust_permissions, find_eb_script, mkdir, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
+from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -51,6 +56,8 @@ _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
 CCACHE = 'ccache'
 F90CACHE = 'f90cache'
+
+RPATH_WRAPPERS_SUBDIR = 'rpath_wrappers'
 
 
 class Toolchain(object):
@@ -100,6 +107,7 @@ class Toolchain(object):
 
         self.dependencies = []
         self.toolchain_dep_mods = []
+        self.cached_compilers = set()
 
         if name is None:
             name = self.NAME
@@ -590,38 +598,56 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
-    def symlink_compilers(self, paths):
+    def symlink_commands(self, paths):
         """
-        Create a symlink for each compiler to binary/script at specified path.
+        Create a symlink for each command to binary/script at specified path.
 
-        :param paths: dictionary containing mapping from types of caches (ccache, f90cache) to
-                      tuple ('path/to/cache', [commands to symlink to this cache])
+        :param paths: dictionary containing one or mappings, each one specified as a tuple:
+                      (<path/to/script>, <list of commands to symlink to the script>)
         """
-        tmpdir = tempfile.mkdtemp()
+        symlink_dir = tempfile.mkdtemp()
 
-        for _, (path, comps) in paths.items():
-            for comp in comps:
-                comp_s = os.path.join(tmpdir, comp)
-                if not os.path.exists(comp_s):
+        # prepend location to symlinks to $PATH
+        setvar('PATH', '%s:%s' % (symlink_dir, os.getenv('PATH')))
+
+        for (path, cmds) in paths.values():
+            for cmd in cmds:
+                cmd_s = os.path.join(symlink_dir, cmd)
+                if not os.path.exists(cmd_s):
                     try:
-                        os.symlink(path, comp_s)
+                        os.symlink(path, cmd_s)
                     except OSError as err:
-                        raise EasyBuildError("Failed to symlink %s to %s: %s", path, comp_s, err)
+                        raise EasyBuildError("Failed to symlink %s to %s: %s", path, cmd_s, err)
 
-        setvar('PATH', '%s:%s' % (tmpdir, os.getenv('PATH')))
+                cmd_path = which(cmd)
+                self.log.debug("which(%s): %s -> %s", cmd, cmd_path, os.path.realpath(cmd_path))
 
+            self.log.info("Commands symlinked to %s via %s: %s", path, symlink_dir, ', '.join(cmds))
 
-    def prepare(self, onlymod=None, silent=False, loadmod=True):
+    def compilers(self):
+        """Return list of relevant compilers for this toolchain"""
+
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            c_comps = ['gcc', 'g++']
+            fortran_comps =  ['gfortran']
+        else:
+            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
+            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+
+        return (c_comps, fortran_comps)
+
+    def prepare(self, onlymod=None, silent=False, loadmod=True, rpath_filter_dirs=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
         - generate extra variables and set them in the environment
 
-        @param: onlymod: boolean/string to indicate if the toolchain should only load the environment
+        :param onlymod: boolean/string to indicate if the toolchain should only load the environment
                          with module (True) or also set all other variables (False) like compiler CC etc
                          (If string: comma separated list of variables that will be ignored).
         :param silent: keep quiet, or not (mostly relates to extended dry run output)
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
+        :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         """
         if loadmod:
             self._load_modules(silent=silent)
@@ -647,41 +673,139 @@ class Toolchain(object):
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
 
-        if build_option('use_compiler_cache'):
-            self.prepare_compiler_cache()
+        # consider f90cache first, since ccache can also wrap Fortran compilers
+        for cache_tool in [F90CACHE, CCACHE]:
+            if build_option('use_%s' % cache_tool):
+                self.prepare_compiler_cache(cache_tool)
 
-    def prepare_compiler_cache(self):
-        """
-        Prepare paths and variables for using compiler caches (ccache, f90cache)
-        """
-        paths = {}
+        if build_option('rpath'):
+            self.prepare_rpath_wrappers()
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            c_comps = ['gcc', 'g++']
-            fortran_comps =  ['gfortran']
+    def comp_cache_compilers(self, cache_tool):
+        """
+        Determine list of relevant compilers for specified compiler caching tool.
+        :param cache_tool: name of compiler caching tool
+        :return: list of names of relevant compilers
+        """
+        c_comps, fortran_comps = self.compilers()
+
+        if cache_tool == CCACHE:
+            # recent versions of ccache (>=3.3) also support caching of Fortran compilations
+            comps = c_comps + fortran_comps
+        elif cache_tool == F90CACHE:
+            comps = fortran_comps
         else:
-            c_comps = [self.COMPILER_CC, self.COMPILER_CXX]
-            fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
+            raise EasyBuildError("Uknown compiler caching tool specified: %s", cache_tool)
 
-        compilers = {
-            CCACHE : c_comps,
-            F90CACHE : fortran_comps,
-        }
+        # filter out compilers that are already cached;
+        # Fortran compilers could already be cached by f90cache when preparing for ccache
+        for comp in comps[:]:
+            if comp in self.cached_compilers:
+                self.log.debug("Not caching compiler %s, it's already being cached", comp)
+                comps.remove(comp)
 
-        for cache in [CCACHE, F90CACHE]:
-            cache_path = which(cache)
-            if cache_path is None:
-                raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+        return comps
+
+    def prepare_compiler_cache(self, cache_tool):
+        """
+        Prepare for using specified compiler caching tool (e.g., ccache, f90cache)
+
+        :param cache_tool: name of compiler caching tool to prepare for
+        """
+        compilers = self.comp_cache_compilers(cache_tool)
+        self.log.debug("Using compiler cache tool '%s' for compilers: %s", cache_tool, compilers)
+
+        # set paths that should be used by compiler caching tool
+        comp_cache_path = build_option('use_%s' % cache_tool)
+        setvar('%s_DIR' % cache_tool.upper(), comp_cache_path)
+        setvar('%s_TEMPDIR' % cache_tool.upper(), tempfile.mkdtemp())
+
+        cache_path = which(cache_tool)
+        if cache_path is None:
+            raise EasyBuildError("%s binary not found in $PATH, required by --use-compiler-cache", cache)
+        else:
+            self.symlink_commands({cache_tool: (cache_path, compilers)})
+
+        self.cached_compilers.update(compilers)
+        self.log.debug("Cached compilers (after preparing for %s): %s", cache_tool, self.cached_compilers)
+
+    @staticmethod
+    def is_rpath_wrapper(path):
+        """
+        Check whether command at specified location already is an RPATH wrapper script rather than the actual command
+        """
+        in_rpath_wrappers_dir = os.path.basename(os.path.dirname(path)) == RPATH_WRAPPERS_SUBDIR
+        calls_rpath_args = 'rpath_args.py $CMD' in read_file(path)
+        return in_rpath_wrappers_dir and calls_rpath_args
+
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None):
+        """
+        Put RPATH wrapper script in place for compiler and linker commands
+
+        :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
+        """
+        self.log.experimental("Using wrapper scripts for compiler/linker commands that enforce RPATH linking")
+
+        if get_os_type() == LINUX:
+            self.log.info("Putting RPATH wrappers in place...")
+        else:
+            raise EasyBuildError("RPATH linking is currently only supported on Linux")
+
+        wrapper_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+
+        # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
+        c_comps, fortran_comps = self.compilers()
+
+        rpath_args_py = find_eb_script('rpath_args.py')
+        rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
+
+        # prepend location to wrappers to $PATH
+        setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+
+        # figure out list of patterns to use in rpath filter
+        rpath_filter = build_option('rpath_filter')
+        if rpath_filter is None:
+            rpath_filter = ['/lib.*', '/usr.*']
+            self.log.debug("No general RPATH filter specified, falling back to default: %s", rpath_filter)
+        rpath_filter = ','.join(rpath_filter + ['%s.*' % d for d in rpath_filter_dirs or []])
+        self.log.debug("Combined RPATH filter: '%s'" % rpath_filter)
+
+        # create wrappers
+        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold']):
+            orig_cmd = which(cmd)
+
+            if orig_cmd:
+                # bail out early if command already is a wrapped;
+                # this may occur when building extensions
+                if self.is_rpath_wrapper(orig_cmd):
+                    self.log.info("%s already seems to be an RPATH wrapper script, not wrapping it again!", orig_cmd)
+                    continue
+
+                cmd_wrapper = os.path.join(wrapper_dir, cmd)
+
+                # make *very* sure we don't wrap around ourselves and create a fork bomb...
+                if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
+                    raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
+
+                # enable debug mode in wrapper script by specifying location for log file
+                if build_option('debug'):
+                    rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
+                else:
+                    rpath_wrapper_log = '/dev/null'
+
+                # complete template script and put it in place
+                cmd_wrapper_txt = read_file(rpath_wrapper_template) % {
+                    'orig_cmd': orig_cmd,
+                    'python': sys.executable,
+                    'rpath_args_py': rpath_args_py,
+                    'rpath_filter': rpath_filter,
+                    'rpath_wrapper_log': rpath_wrapper_log,
+                }
+                write_file(cmd_wrapper, cmd_wrapper_txt)
+                adjust_permissions(cmd_wrapper, stat.S_IXUSR)
+                self.log.info("Wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
-                paths[cache] = (cache_path, compilers[cache])
-
-        # set paths for caches
-        comp_cache_path = build_option('use_compiler_cache')
-        for cachename in ["CCACHE", "F90CACHE"]:
-            os.environ["%s_DIR" % cachename] = comp_cache_path
-            os.environ["%s_TEMPDIR" % cachename] = tempfile.mkdtemp()
-
-        self.symlink_compilers(paths)
+                self.log.debug("Not installing RPATH wrapper for non-existing command '%s'", cmd)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
@@ -760,8 +884,14 @@ class Toolchain(object):
         """ Return compiler family used in this toolchain (abstract method)."""
         raise NotImplementedError
 
+    def blas_family(self):
+        "Return type of BLAS library used in this toolchain, or 'None' if BLAS is not supported."
+        return None
+
+    def lapack_family(self):
+        "Return type of LAPACK library used in this toolchain, or 'None' if LAPACK is not supported."
+        return None
+
     def mpi_family(self):
-        """ Return type of MPI library used in this toolchain or 'None' if MPI is not
-            supported.
-        """
+        "Return type of MPI library used in this toolchain, or 'None' if MPI is not supported."
         return None
