@@ -584,7 +584,7 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
+def _pr_common(paths, ecs, start_branch=None, pr_branch=None, target_account=None, commit_msg=None):
     """
     Common code for new_pr and update_pr functions:
     * check whether all supplied paths point to existing files
@@ -594,7 +594,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     * stage/commit all files in PR branch
     * push PR branch to GitHub (to account specified by --github-user)
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: paths to categorized lists of files (added/changed files, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param start_branch: name of branch to start from
     :param pr_branch: name of branch to push to GitHub
@@ -603,16 +603,11 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     """
     # we need files to create the PR with
     non_existing_paths = []
-    ec_paths = []
-    if paths['easyconfigs']:
-        for path in paths['easyconfigs']:
-            if not os.path.exists(path):
-                    non_existing_paths.append(path)
-            else:
-                ec_paths.append(path)
-
-        if non_existing_paths:
-            raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
+    for path in paths['easyconfigs'] + paths['patch_files'] + paths['py']:
+        if not os.path.exists(path):
+            non_existing_paths.append(path)
+    if non_existing_paths:
+        raise EasyBuildError("One or more non-existing paths specified: %s", ', '.join(non_existing_paths))
 
     if not any(paths.values()):
         raise EasyBuildError("No paths specified")
@@ -624,7 +619,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     git_repo = init_repo(git_working_dir, pr_target_repo)
     repo_path = os.path.join(git_working_dir, pr_target_repo)
 
-    if pr_target_repo not in [GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_FRAMEWORK_REPO,]:
+    if pr_target_repo not in [GITHUB_EASYBLOCKS_REPO, GITHUB_EASYCONFIGS_REPO, GITHUB_FRAMEWORK_REPO]:
         raise EasyBuildError("Don't know how to create/update a pull request to the %s repository", pr_target_repo)
 
     if start_branch is None:
@@ -635,21 +630,28 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
 
     _log.debug("git status: %s", git_repo.git.status())
 
-    # copy easyconfig files to right place
+    # copy files to right place
     target_dir = os.path.join(git_working_dir, pr_target_repo)
     print_msg("copying files to %s..." % target_dir)
-    file_info = COPY_FUNCTIONS[pr_target_repo](ec_paths, os.path.join(git_working_dir, pr_target_repo))
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        file_info = copy_easyconfigs(paths['easyconfigs'], target_dir)
+    if pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+        file_info = copy_easyblocks(paths['py'], target_dir)
+    if pr_target_repo == GITHUB_FRAMEWORK_REPO:
+        file_info = copy_framework_files(paths['py'], target_dir)
+    else:
+        raise EasyBuildError("Unknown target repository: %s", pr_target_repo)
 
     # figure out commit message to use
     if commit_msg:
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified easyconfigs at once: %s", cnt, commit_msg)
-    elif all(file_info['new']) and not paths['patch_files'] and not paths['files_to_delete']:
+    elif all(file_info['new']) and not any(paths['files_to_delete'], paths['patch_files'], paths['py']):
         # automagically derive meaningful commit message if all easyconfig files are new
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
         raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
-                             "modifying/deleting easyconfigs and/or specifying patches")
+                             "modifying/deleting easyconfigs, and/or specifying patches or Python modules")
 
     # figure out to which software name patches relate, and copy them to the right place
     if paths['patch_files']:
@@ -664,13 +666,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
         fullpath = os.path.join(repo_path, fn)
         if os.path.exists(fullpath):
             deleted_paths.append(fullpath)
-        else:
+        elif fn.endswith('.eb'):
             # if no existing relative path is specified, assume just the easyconfig file name is provided
             hits = glob.glob(os.path.join(repo_path, 'easybuild', 'easyconfigs', '*', '*', fn))
             if len(hits) == 1:
                 deleted_paths.append(hits[0])
             else:
                 raise EasyBuildError("Path doesn't exist or file to delete isn't found in target branch: %s", fn)
+        else:
+            raise EasyBuildError("Path does not exist, file location could not be derived: %s", fn)
 
     dep_info = {
         'ecs': [],
@@ -680,8 +684,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
 
     # include missing easyconfigs for dependencies, if robot is enabled
     if ecs is not None:
-
-        abs_paths = [os.path.realpath(os.path.abspath(path)) for path in ec_paths]
+        abs_paths = [os.path.realpath(os.path.abspath(path)) for path in paths['easyconfigs']]
         dep_paths = [ec['spec'] for ec in ecs if os.path.realpath(ec['spec']) not in abs_paths]
         _log.info("Paths to easyconfigs for missing dependencies: %s", dep_paths)
         all_dep_info = copy_easyconfigs(dep_paths, target_dir)
@@ -694,7 +697,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
 
     # checkout target branch
     if pr_branch is None:
-        if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if paths['easyconfigs'] and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             label = file_info['ecs'][0].name + string.translate(file_info['ecs'][0].version, None, '-.')
         else:
             label = ''.join(random.choice(string.letters) for _ in range(10))
@@ -706,7 +709,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, target
     _log.info("New branch '%s' created to commit files to", pr_branch)
 
     # stage
-    _log.debug("Staging all %d new/modified easyconfigs", len(file_info['paths_in_repo']))
+    _log.debug("Staging all %d new/modified files", len(file_info['paths_in_repo']))
     git_repo.index.add(file_info['paths_in_repo'])
     git_repo.index.add(dep_info['paths_in_repo'])
 
@@ -923,7 +926,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
     """
     Open new pull request using specified files
 
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: paths to categorized lists of files (added/changed files, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param title: title to use for pull request
     :param descr: description to use for description
@@ -946,10 +949,10 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         raise EasyBuildError("GitHub token for user '%s' must be available to use --new-pr", github_user)
 
     # create branch, commit files to it & push to GitHub
-    file_info, deleted_paths, git_repo, branch, diff_stat = _easyconfigs_pr_common(paths, ecs,
-                                                                                   pr_branch=pr_branch_name,
-                                                                                   target_account=pr_target_account,
-                                                                                   commit_msg=commit_msg)
+    file_info, deleted_paths, git_repo, branch, diff_stat = _pr_common(paths, ecs,
+                                                                       pr_branch=pr_branch_name,
+                                                                       target_account=pr_target_account,
+                                                                       commit_msg=commit_msg)
 
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         # only use most common toolchain(s) in toolchain label of PR title
@@ -963,7 +966,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
         class_label = ','.join([tc for (cnt, tc) in classes_counted if cnt == classes_counted[-1][0]])
 
     if title is None:
-        if file_info['ecs'] and all(file_info['new']) and not deleted_paths:
+        if file_info.get('ecs', None) and all(file_info['new']) and not deleted_paths:
             # mention software name/version in PR title (only first 3)
             names_and_versions = ["%s v%s" % (ec.name, ec.version) for ec in file_info['ecs']]
             if len(names_and_versions) <= 3:
@@ -1020,7 +1023,7 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     Update specified pull request using specified files
 
     :param pr: ID of pull request to update
-    :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches)
+    :param paths: paths to categorized lists of files (added/changed files, files to delete, patches)
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param commit_msg: commit message to use
     """
@@ -1046,8 +1049,8 @@ def update_pr(pr, paths, ecs, commit_msg=None):
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr, branch), log=_log)
 
-    _, _, _, _, diff_stat = _easyconfigs_pr_common(paths, ecs, start_branch=branch, pr_branch=branch,
-                                                   target_account=account, commit_msg=commit_msg)
+    _, _, _, _, diff_stat = _pr_common(paths, ecs, start_branch=branch, pr_branch=branch,
+                                       target_account=account, commit_msg=commit_msg)
 
     print_msg("Overview of changes:\n%s\n" % diff_stat, log=_log, prefix=False)
 
@@ -1370,10 +1373,3 @@ def find_easybuild_easyconfig():
 
     eb_file = os.path.join(eb_parent_path, fn)
     return eb_file
-
-# copy functions for --new-pr
-COPY_FUNCTIONS = {
-    GITHUB_EASYCONFIGS_REPO: copy_easyconfigs,
-    GITHUB_EASYBLOCKS_REPO: copy_easyblocks,
-    GITHUB_FRAMEWORK_REPO: copy_framework_files,
-}
