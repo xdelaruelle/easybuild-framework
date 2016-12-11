@@ -1909,7 +1909,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
-        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': []}, categorize_files_by_type([]))
+
+        expected = {'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py': []}
+        self.assertEqual(expected, categorize_files_by_type([]))
 
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
         toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
@@ -1917,6 +1919,7 @@ class EasyConfigTest(EnhancedTestCase):
             'bzip2-1.0.6.eb',
             os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
             toy_patch,
+            'test/example.py',
             'foo',
             ':toy-0.0-deps.eb',
         ]
@@ -1926,9 +1929,11 @@ class EasyConfigTest(EnhancedTestCase):
             os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb'),
             'foo',
         ]
+        self.assertEqual(sorted(res.keys()), ['easyconfigs', 'files_to_delete', 'patch_files', 'py'])
         self.assertEqual(res['easyconfigs'], expected)
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
         self.assertEqual(res['patch_files'], [toy_patch])
+        self.assertEqual(res['py'], ['test/example.py'])
 
     def test_resolve_template(self):
         """Test resolve_template function."""
