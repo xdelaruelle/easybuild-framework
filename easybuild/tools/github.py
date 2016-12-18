@@ -635,9 +635,9 @@ def _pr_common(paths, ecs, start_branch=None, pr_branch=None, target_account=Non
     print_msg("copying files to %s..." % target_dir)
     if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
         file_info = copy_easyconfigs(paths['easyconfigs'], target_dir)
-    if pr_target_repo == GITHUB_EASYBLOCKS_REPO:
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO:
         file_info = copy_easyblocks(paths['py'], target_dir)
-    if pr_target_repo == GITHUB_FRAMEWORK_REPO:
+    elif pr_target_repo == GITHUB_FRAMEWORK_REPO:
         file_info = copy_framework_files(paths['py'], target_dir)
     else:
         raise EasyBuildError("Unknown target repository: %s", pr_target_repo)
@@ -646,7 +646,7 @@ def _pr_common(paths, ecs, start_branch=None, pr_branch=None, target_account=Non
     if commit_msg:
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified easyconfigs at once: %s", cnt, commit_msg)
-    elif all(file_info['new']) and not any(paths['files_to_delete'], paths['patch_files'], paths['py']):
+    elif all(file_info['new']) and not any([paths['files_to_delete'], paths['patch_files'], paths['py']]):
         # automagically derive meaningful commit message if all easyconfig files are new
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
