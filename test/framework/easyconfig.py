@@ -1787,7 +1787,10 @@ class EasyConfigTest(EnhancedTestCase):
             ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
             shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
 
-        copy_easyconfigs(ecs_to_copy, target_dir)
+        # touch one of the target locations, to verify 'new' values in return value
+        write_file(os.path.join(target_dir, 'easybuild', 'easyconfigs', test_ecs[1][0]), '')
+
+        res = copy_easyconfigs(ecs_to_copy, target_dir)
 
         # check whether easyconfigs were copied (unmodified) to correct location
         for orig_ec, src_ec in test_ecs:
@@ -1795,6 +1798,12 @@ class EasyConfigTest(EnhancedTestCase):
             copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
             self.assertTrue(os.path.exists(copied_ec), "File %s exists" % copied_ec)
             self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
+
+        self.assertTrue(res['paths_in_repo'][0].endswith(os.path.join('easybuild', 'easyconfigs', test_ecs[0][0])))
+        self.assertTrue(res['paths_in_repo'][1].endswith(os.path.join('easybuild', 'easyconfigs', test_ecs[1][0])))
+        self.assertTrue(res['paths_in_repo'][2].endswith(os.path.join('easybuild', 'easyconfigs', test_ecs[2][0])))
+        self.assertEqual(res['new'], [True, False, True])
+        self.assertEqual(len(res['ecs']), 3)
 
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
