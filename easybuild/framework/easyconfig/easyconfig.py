@@ -61,7 +61,8 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, templat
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import copy_file, decode_class_name, encode_class_name, mkdir, read_file, write_file
+from easybuild.tools.filetools import copy_file, copy_files_to_repo, decode_class_name, encode_class_name, mkdir
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -1468,29 +1469,19 @@ def copy_easyconfigs(paths, target_dir):
     :param target_dir: target directory
     :return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
     """
-    file_info = {
-        'ecs': [],
-        'paths_in_repo': [],
-        'new': [],
-    }
-
+    ecs, target_paths = [], []
     for path in paths:
-        ecs = process_easyconfig(path, validate=False)
-        if len(ecs) == 1:
-            file_info['ecs'].append(ecs[0]['ec'])
-
-            soft_name = file_info['ecs'][-1].name
-            ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(file_info['ecs'][-1]))
-
-            target_path = det_location_for(path, target_dir, soft_name, ec_filename)
-
-            file_info['new'].append(not os.path.exists(target_path))
-
-            copy_file(path, target_path, force_in_dry_run=True)
-            file_info['paths_in_repo'].append(target_path)
-
+        parsed_ecs = process_easyconfig(path, validate=False)
+        if len(parsed_ecs) == 1:
+            ecs.append(parsed_ecs[0]['ec'])
+            soft_name = ecs[-1].name
+            ec_filename = '%s-%s.eb' % (soft_name, det_full_ec_version(ecs[-1]))
+            target_paths.append(det_location_for(path, target_dir, soft_name, ec_filename))
         else:
             raise EasyBuildError("Multiple EasyConfig instances obtained from easyconfig file %s", path)
+
+    file_info = copy_files_to_repo(paths, target_paths)
+    file_info['ecs'] = ecs
 
     return file_info
 

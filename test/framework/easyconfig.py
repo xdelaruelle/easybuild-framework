@@ -1804,6 +1804,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(res['paths_in_repo'][2].endswith(os.path.join('easybuild', 'easyconfigs', test_ecs[2][0])))
         self.assertEqual(res['new'], [True, False, True])
         self.assertEqual(len(res['ecs']), 3)
+        self.assertTrue(all(isinstance(x, EasyConfig) for x in res['ecs']))
 
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""

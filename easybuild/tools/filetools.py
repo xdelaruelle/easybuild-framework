@@ -1403,3 +1403,22 @@ def copy_file(path, target_path, force_in_dry_run=False):
             _log.info("%s copied to %s", path, target_path)
         except OSError as err:
             raise EasyBuildError("Failed to copy %s to %s: %s", path, target_path, err)
+
+
+def copy_files_to_repo(paths, target_paths):
+    """
+    Copy files into target directory at specified locations.
+
+    :param paths: list of paths of files to copy
+    :param target_paths: (absolute) target paths for files to copy
+    """
+    res = {
+        'new': [],
+        'paths_in_repo': [],
+    }
+    for path, target_path in zip(paths, target_paths):
+        res['new'].append(not os.path.exists(target_path))
+        copy_file(path, target_path)
+        res['paths_in_repo'].append(target_path)
+
+    return res
