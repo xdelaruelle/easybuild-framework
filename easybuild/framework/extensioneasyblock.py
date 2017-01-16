@@ -22,7 +22,7 @@
 EasyBuild support for building and installing extensions as actual extensions or as stand-alone modules,
 implemented as an easyblock
 
-@author: Kenneth Hoste (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -78,6 +78,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['version'] = self.ext.get('version', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
+            self.modules_tool = self.master.modules_tool
             self.is_extension = True
             self.unpack_options = None
 

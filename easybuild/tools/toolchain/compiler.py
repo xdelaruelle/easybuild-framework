@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,8 +25,8 @@
 """
 Toolchain compiler module, provides abstract class for compilers.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
 """
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError
@@ -63,6 +63,7 @@ class Compiler(Toolchain):
     COMPILER_SHARED_OPTS = {
         'cciscxx': (False, "Use CC as CXX"),  # also MPI
         'pic': (False, "Use PIC"),  # also FFTW
+        'ieee': (False, "Adhere to IEEE-754 rules"),
         'noopt': (False, "Disable compiler optimizations"),
         'lowopt': (False, "Low compiler optimizations"),
         DEFAULT_OPT_LEVEL: (False, "Default compiler optimizations"),  # not set, but default
@@ -84,28 +85,30 @@ class Compiler(Toolchain):
         '32bit': (False, "Compile 32bit target"),  # LA, FFTW
         'openmp': (False, "Enable OpenMP"),
         'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
+        'rpath': (True, "Use RPATH wrappers when --rpath is enabled in EasyBuild configuration"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = None
     COMPILER_SHARED_OPTION_MAP = {
-        'pic': 'fPIC',
-        'verbose': 'v',
-        'debug': 'g',
-        'unroll': 'unroll',
-        'static': 'static',
-        'shared': 'shared',
-        'noopt': 'O0',
-        'lowopt': 'O1',
         DEFAULT_OPT_LEVEL: 'O2',
-        'opt': 'O3',
         '32bit' : 'm32',
         'cstd': 'std=%(value)s',
+        'debug': 'g',
+        'lowopt': 'O1',
+        'noopt': 'O0',
+        'openmp': 'fopenmp',
+        'opt': 'O3',
+        'pic': 'fPIC',
+        'shared': 'shared',
+        'static': 'static',
+        'unroll': 'unroll',
+        'verbose': 'v',
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
     COMPILER_GENERIC_OPTION = None
 
-    COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  # any compiler
+    COMPILER_FLAGS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
     COMPILER_OPT_FLAGS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
     COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
@@ -133,7 +136,8 @@ class Compiler(Toolchain):
     def __init__(self, *args, **kwargs):
         """Compiler constructor."""
         Toolchain.base_init(self)
-        self.arch = None
+        self.arch = systemtools.get_cpu_architecture()
+        self.cpu_family = systemtools.get_cpu_family()
         # list of compiler prefixes
         self.prefixes = []
         super(Compiler, self).__init__(*args, **kwargs)
@@ -146,8 +150,8 @@ class Compiler(Toolchain):
 
     def set_variables(self):
         """Set the variables"""
-
         self._set_compiler_vars()
+        self._set_optimal_architecture()
         self._set_compiler_flags()
 
         self.log.debug('set_variables: compiler variables %s' % self.variables)
@@ -164,8 +168,6 @@ class Compiler(Toolchain):
                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
             )
-
-        self._set_optimal_architecture()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -259,31 +261,36 @@ class Compiler(Toolchain):
 
         # precflags last
         for var in ['CFLAGS', 'CXXFLAGS']:
-            self.variables.nappend(var, flags)
-            self.variables.nappend(var, cflags)
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
+            self.variables.nextend(var, flags)
+            self.variables.nextend(var, cflags)
 
         for var in ['FCFLAGS', 'FFLAGS', 'F90FLAGS']:
-            self.variables.nappend(var, flags)
-            self.variables.nappend(var, fflags)
             self.variables.join(var, 'OPTFLAGS', 'PRECFLAGS')
+            self.variables.nextend(var, flags)
+            self.variables.nextend(var, fflags)
 
-    def _set_optimal_architecture(self):
-        """ Get options for the current architecture """
-        if self.arch is None:
-            self.arch = systemtools.get_cpu_family()
+    def _set_optimal_architecture(self, default_optarch=None):
+        """
+        Get options for the current architecture
 
+        :param default_optarch: default value to use for optarch, rather than using default value based on architecture
+                                (--optarch and --optarch=GENERIC still override this value)
+        """
         optarch = None
         # --optarch is specified with flags to use
         if build_option('optarch') is not None and build_option('optarch') != OPTARCH_GENERIC:
             optarch = build_option('optarch')
         # --optarch=GENERIC
         elif build_option('optarch') == OPTARCH_GENERIC:
-            if self.arch in (self.COMPILER_GENERIC_OPTION or []):
-                optarch = self.COMPILER_GENERIC_OPTION[self.arch]
-        # no --optarch specified
-        elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
-            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+            if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
+                optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
+        # specified optarch default value
+        elif default_optarch:
+            optarch = default_optarch
+        # no --optarch specified, no default value specified
+        elif (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
 
         if optarch is not None:
             self.log.info("_set_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))

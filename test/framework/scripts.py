@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -32,8 +32,8 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from unittest import TextTestRunner
 
 import setuptools
 import vsc
@@ -84,15 +84,16 @@ class ScriptsTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        regex = r"Supported Packages \(23 "
+        regex = r"Supported Packages \(26 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
             'B': '1',  # bzip2
             'C': '2',  # CrayCCE, CUDA
             'F': '1',  # FFTW
-            'G': '5',  # GCC, GCCcore, gompi, goolf, gzip
+            'G': '6',  # GCC, GCCcore, gmvapich2, gompi, goolf, gzip
             'H': '1',  # hwloc
-            'I': '7',  # icc, iccifort, ictce, ifort, iimpi, imkl, impi
+            'I': '8',  # icc, iccifort, iccifortcuda, ictce, ifort, iimpi, imkl, impi
+            'M': '1',  # MVAPICH2
             'O': '2',  # OpenMPI, OpenBLAS
             'P': '1',  # Python
             'S': '2',  # ScaLAPACK, SQLite
@@ -218,7 +219,7 @@ class ScriptsTest(EnhancedTestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ScriptsTest)
+    return TestLoaderFiltered().loadTestsFromTestCase(ScriptsTest, sys.argv[1:])
 
 if __name__ == '__main__':
-    main()
+    TextTestRunner(verbosity=1).run(suite())

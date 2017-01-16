@@ -4,7 +4,7 @@
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -25,9 +25,9 @@
 """
 Support for MPICH2 as toolchain MPI library.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Jens Timmerman (Ghent University)
+:author: Stijn De Weirdt (Ghent University)
+:author: Kenneth Hoste (Ghent University)
+:author: Jens Timmerman (Ghent University)
 """
 
 from easybuild.toolchains.mpi.mpich import Mpich
@@ -45,9 +45,12 @@ class Mpich2(Mpich):
     def _set_mpi_compiler_variables(self):
         """Set the MPICH_{CC, CXX, F77, F90, FC} variables."""
 
-        # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)
-        self.MPI_COMPILER_MPIF77 = 'mpif77'
-        self.MPI_COMPILER_MPIF90 = 'mpif90'
-        self.MPI_COMPILER_MPIFC = 'mpif90'
+	# C/CXX commands are set by the parent or child classes
+
+        if self.MPI_COMPILER_MPIF77 is None and self.MPI_COMPILER_MPIF90 is None and self.MPI_COMPILER_MPIFC is None:
+            # hardwire MPI wrapper commands (otherwise Mpich parent class sets them based on MPICH version)
+            self.MPI_COMPILER_MPIF77 = 'mpif77'
+            self.MPI_COMPILER_MPIF90 = 'mpif90'
+            self.MPI_COMPILER_MPIFC = 'mpif90'
 
         super(Mpich2, self)._set_mpi_compiler_variables()
