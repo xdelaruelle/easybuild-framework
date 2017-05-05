@@ -85,8 +85,8 @@ script:
     - python -O -m test.framework.suite
     # check bootstrap script version
     # version and MD5 are hardcoded below to avoid forgetting to update the version in the script along with contents
-    - [[ "$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | cut -f2 -d=)" == " '20170503.01'" ]]
-    - [[ "$(md5 easybuild/scripts/bootstrap_eb.py | cut -f2 -d=)" == " fdf8ca02b6600c4ce0b6a02b88f1f40a" ]]
+    - [ "$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | cut -f2 -d=)" == " '20170503.01'" ]
+    - [ "$(md5 easybuild/scripts/bootstrap_eb.py | cut -f2 -d=)" == " fdf8ca02b6600c4ce0b6a02b88f1f40a" ]
     # test bootstrap script
     - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
