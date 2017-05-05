@@ -85,8 +85,14 @@ script:
     - python -O -m test.framework.suite
     # check bootstrap script version
     # version and MD5 are hardcoded below to avoid forgetting to update the version in the script along with contents
-    - [ "$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | cut -f2 -d=)" == " '20170503.01'" ]
-    - [ "$(md5 easybuild/scripts/bootstrap_eb.py | cut -f2 -d=)" == " fdf8ca02b6600c4ce0b6a02b88f1f40a" ]
+    - EB_BOOTSTRAP_VERSION=$(grep '^EB_BOOTSTRAP_VERSION' easybuild/scripts/bootstrap_eb.py | sed 's/[^0-9.]//g')
+    - EB_BOOTSTRAP_MD5SUM=$(md5sum easybuild/scripts/bootstrap_eb.py | sed 's/.* = //g')
+    - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_MD5SUM"
+    - EB_BOOTSTRAP_EXPECTED="20170505.01 fdf8ca02b6600c4ce0b6a02b88f1f40a"
+    - if [ "$EB_BOOTSTRAP_FOUND" != "$EB_BOOTSTRAP_EXPECTED" ]; then
+        echo "ERROR: Version/MD5sum mismatch for bootstrap script: '$EB_BOOTSTRAP_FOUND' vs '$EB_BOOTSTRAP_EXPECTED'" >&2
+        exit 1
+      fi
     # test bootstrap script
     - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
