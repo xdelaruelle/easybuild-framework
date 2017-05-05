@@ -90,7 +90,7 @@ script:
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_MD5SUM"
     - EB_BOOTSTRAP_EXPECTED="20170505.01 fdf8ca02b6600c4ce0b6a02b88f1f40a"
     - if [ "$EB_BOOTSTRAP_FOUND" != "$EB_BOOTSTRAP_EXPECTED" ]; then
-        echo "ERROR: Version/MD5sum mismatch for bootstrap script: '$EB_BOOTSTRAP_FOUND' vs '$EB_BOOTSTRAP_EXPECTED'" >&2
+        echo "ERROR: Version/MD5sum mismatch for bootstrap script: '$EB_BOOTSTRAP_FOUND' vs '$EB_BOOTSTRAP_EXPECTED'"
         exit 1
       fi
     # test bootstrap script
