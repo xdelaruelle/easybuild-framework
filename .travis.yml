@@ -89,7 +89,7 @@ script:
     - EB_BOOTSTRAP_MD5SUM=$(md5sum easybuild/scripts/bootstrap_eb.py | sed 's/.* = //g')
     - EB_BOOTSTRAP_FOUND="$EB_BOOTSTRAP_VERSION $EB_BOOTSTRAP_MD5SUM"
     - EB_BOOTSTRAP_EXPECTED="20170505.01 fdf8ca02b6600c4ce0b6a02b88f1f40a"
-    - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED"
+    - test "$EB_BOOTSTRAP_FOUND" = "$EB_BOOTSTRAP_EXPECTED" | (echo "Version check on bootstrap script failed" && exit 1)
     # test bootstrap script
     - python $TRAVIS_BUILD_DIR/easybuild/scripts/bootstrap_eb.py /tmp/$TRAVIS_JOB_ID/eb_bootstrap
     # unset $PYTHONPATH to avoid mixing two EasyBuild 'installations' when testing bootstrapped EasyBuild module
