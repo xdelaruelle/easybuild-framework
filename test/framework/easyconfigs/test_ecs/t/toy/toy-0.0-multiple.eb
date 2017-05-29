@@ -11,7 +11,7 @@ toolchain = {'name': 'dummy', 'version': 'dummy'}
 sources = [SOURCE_TAR_GZ]
 patches = ['toy-0.0_typo.patch']
 checksums = [
-    ('adler32', '0x998410035'),
+    ('adler32', '0x592019370'),
     'e6785e1a721fc8bf79892e3ef41557c0',
 ]
 
