@@ -865,6 +865,9 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     else:
         _log.debug("Using specified patch level %d for patch %s" % (level, patch_file))
 
+    # make sure we have write permissions so patch can be applied
+    adjust_permissions(os.getcwd(), stat.S_IWUSR, add=True, recursive=True)
+
     patch_cmd = "patch -b -p%s -i %s" % (level, apatch)
     out, ec = run.run_cmd(patch_cmd, simple=False, path=adest, log_ok=False)
 
