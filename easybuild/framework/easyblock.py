@@ -2518,8 +2518,6 @@ def build_and_install_one(ecdict, init_env):
     silent = build_option('silent')
 
     spec = ecdict['spec']
-    rawtxt = ecdict['ec'].rawtxt
-    name = ecdict['ec']['name']
 
     dry_run = build_option('extended_dry_run')
 
@@ -2539,19 +2537,7 @@ def build_and_install_one(ecdict, init_env):
 
     cwd = os.getcwd()
 
-    # load easyblock
-    easyblock = build_option('easyblock')
-    if not easyblock:
-        easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
-
-    try:
-        app_class = get_easyblock_class(easyblock, name=name)
-
-        app = app_class(ecdict['ec'])
-        _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
-    except EasyBuildError, err:
-        print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
-                    silent=silent)
+    app = get_easyblock_instance(ecdict['ec'])
 
     # application settings
     stop = build_option('stop')
@@ -2705,16 +2691,25 @@ def get_easyblock_instance(ecdict):
 
     returns an instance of EasyBlock (or subclass thereof)
     """
-    spec = ecdict['spec']
     rawtxt = ecdict['ec'].rawtxt
     name = ecdict['ec']['name']
 
     # handle easyconfigs with custom easyblocks
     # determine easyblock specification from easyconfig file, if any
-    easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
+    easyblock = build_option('easyblock')
+    if not easyblock:
+        easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
 
-    app_class = get_easyblock_class(easyblock, name=name)
-    return app_class(ecdict['ec'])
+    try:
+        eb_class = get_easyblock_class(easyblock, name=name)
+        _log.info("Creating instance of easyblock class '%s' for %s...", eb_class, name)
+
+        eb_ins = eb_class(ecdict['ec'])
+
+    except Exception as err:
+        raise EasyBuildError("Failed to create instance of easyblock class '%s for %s: %s", easyblock, name, err)
+
+    return eb_ins
 
 
 def build_easyconfigs(easyconfigs, output_dir, test_results):
