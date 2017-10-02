@@ -36,6 +36,7 @@ from datetime import datetime, timedelta
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
+from vsc.utils.missing import nub
 
 from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError, print_msg, print_warning, time_str_since
 from easybuild.tools.filetools import read_file, write_file
@@ -184,6 +185,7 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=True)
         log = getLogger('test_easybuildlog')
 
+        self.mock_stderr(True)
         for level in ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'DEVEL']:
             log.setLevelName(level)
             log.raiseError = False
@@ -194,6 +196,12 @@ class BuildLogTest(EnhancedTestCase):
             log.info('fyi')
             log.debug('gdb')
             log.devel('tmi')
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        full_depr_msg = "Deprecated functionality, will no longer work in v10000000000000: almost kaput; see "
+        full_depr_msg += "http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html for more information"
+        self.assertEqual(nub(stderr.strip().split('\n')), [full_depr_msg])
 
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
