@@ -103,5 +103,5 @@ script:
     - unset PYTHONPATH
     # simply sanity check on bootstrapped EasyBuild module
     - if [ "x$TEST_EASYBUILD_MODULES_TOOL" != 'xEnvironmentModules' ]; then
-        module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version
+        module use /tmp/$TRAVIS_JOB_ID/eb_bootstrap/modules/all; module load EasyBuild; eb --version;
       fi;
